@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Env / secrets
+.env
+*.local
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local data (keep the folders via .gitkeep, ignore contents)
+data/curriculum/*
+data/career/*
+!data/**/.gitkeep
+
+# Qdrant / docker volumes
+qdrant_storage/
