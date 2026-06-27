@@ -41,6 +41,9 @@ packages = ["src/teacher_copilot"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: makes real network calls; skipped by default / without keys",
+]
 
 [tool.mypy]
 python_version = "3.11"
