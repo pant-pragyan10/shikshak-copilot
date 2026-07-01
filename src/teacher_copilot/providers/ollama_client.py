@@ -14,6 +14,7 @@ import httpx
 
 from teacher_copilot.providers.errors import (
     ProviderError,
+    ProviderModelNotFoundError,
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
@@ -71,6 +72,9 @@ class OllamaClient:
             status = exc.response.status_code
             if status == 429:
                 raise ProviderRateLimitError(str(exc), provider=self.provider) from exc
+            if status == 404:
+                # Ollama returns 404 when the model hasn't been pulled locally.
+                raise ProviderModelNotFoundError(used_model, provider=self.provider) from exc
             if status >= 500:
                 raise ProviderUnavailableError(str(exc), provider=self.provider) from exc
             raise ProviderError(str(exc), provider=self.provider) from exc

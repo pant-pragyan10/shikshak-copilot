@@ -10,6 +10,7 @@ from teacher_copilot.config import Settings
 from teacher_copilot.providers.errors import (
     ProviderAuthError,
     ProviderExhaustedError,
+    ProviderModelNotFoundError,
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
@@ -36,6 +37,7 @@ class FakeClient:
         self.default_model = default_model
         self._behaviors = list(behaviors or [])
         self.calls = 0
+        self.models: list[str | None] = []  # model passed on each call
 
     async def complete(
         self,
@@ -48,6 +50,7 @@ class FakeClient:
     ) -> CompletionResult:
         idx = self.calls
         self.calls += 1
+        self.models.append(model)
         if idx < len(self._behaviors):
             behavior = self._behaviors[idx]
             if isinstance(behavior, Exception):
@@ -201,6 +204,78 @@ async def test_unavailable_provider_falls_back() -> None:
 
     result = await router.complete(_msg(), task_type="fast")
     assert result.provider is Provider.OLLAMA
+
+
+async def test_routing_resolves_model_per_tier() -> None:
+    # Defaults from Settings; assert each task type routes to the right model tier.
+    def make_router() -> tuple[ProviderRouter, FakeClient, FakeClient, FakeClient]:
+        groq = FakeClient(Provider.GROQ)
+        gemini = FakeClient(Provider.GEMINI)
+        ollama = FakeClient(Provider.OLLAMA)
+        router = ProviderRouter(
+            _settings(),
+            clients={
+                Provider.GROQ: groq,
+                Provider.GEMINI: gemini,
+                Provider.OLLAMA: ollama,
+            },
+        )
+        return router, groq, gemini, ollama
+
+    router, groq, gemini, _ = make_router()
+    fast = await router.complete(_msg(), task_type="fast")
+    assert fast.provider is Provider.GROQ
+    assert groq.models == ["openai/gpt-oss-20b"]  # GROQ_FAST_MODEL
+
+    router, groq, gemini, _ = make_router()
+    smart = await router.complete(_msg(), task_type="smart")
+    assert smart.provider is Provider.GROQ
+    assert groq.models == ["openai/gpt-oss-120b"]  # GROQ_SMART_MODEL
+
+    router, groq, gemini, _ = make_router()
+    bulk = await router.complete(_msg(), task_type="bulk")
+    assert bulk.provider is Provider.GEMINI
+    assert gemini.models == ["gemini-3.5-flash-lite"]  # GEMINI_BULK_MODEL
+
+    router, groq, gemini, _ = make_router()
+    mm = await router.complete(
+        [ChatMessage(role="user", content=[ImagePart(data=b"\x89PNG")])],
+        task_type="multimodal",
+    )
+    assert mm.provider is Provider.GEMINI
+    assert gemini.models == ["gemini-3.5-flash"]  # GEMINI_SMART_MODEL
+
+
+async def test_per_call_model_override_wins() -> None:
+    groq = FakeClient(Provider.GROQ)
+    router = ProviderRouter(_settings(), clients={Provider.GROQ: groq})
+
+    result = await router.complete(_msg(), task_type="fast", model="my/custom-model")
+
+    assert groq.models == ["my/custom-model"]
+    assert result.model == "my/custom-model"
+
+
+async def test_model_not_found_triggers_fallback_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    groq = FakeClient(
+        Provider.GROQ,
+        behaviors=[ProviderModelNotFoundError("openai/gpt-oss-20b", provider=Provider.GROQ)],
+    )
+    gemini = FakeClient(Provider.GEMINI)
+    router = ProviderRouter(
+        _settings(), clients={Provider.GROQ: groq, Provider.GEMINI: gemini}
+    )
+
+    with caplog.at_level("WARNING", logger="teacher_copilot.providers"):
+        result = await router.complete(_msg(), task_type="fast")
+
+    assert result.provider is Provider.GEMINI
+    assert groq.calls == 1  # no retry of a missing model
+    warning_text = " ".join(r.getMessage() for r in caplog.records)
+    assert "model unavailable on groq" in warning_text
+    assert "deprecations page" in warning_text  # operator guidance surfaced
 
 
 @pytest.mark.integration

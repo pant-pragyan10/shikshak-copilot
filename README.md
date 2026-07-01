@@ -27,17 +27,24 @@ uvicorn teacher_copilot.api.main:app --reload   # GET /health -> {"status": "ok"
 
 Every LLM call goes through a single `ProviderRouter` (`providers/router.py`). No
 other module may import a provider SDK. The router maps a **task type** to an
-ordered **provider chain** and walks it with retry-then-fallback:
+ordered chain of **(provider, model tier)** and walks it with retry-then-fallback:
 
-| task_type    | used for                                  | provider chain              |
-|--------------|-------------------------------------------|-----------------------------|
-| `fast`       | chat, intent classification, wellbeing    | Groq → Gemini → Ollama      |
-| `multimodal` | image inputs (scanned-answer grading)     | Gemini only (no fallback)   |
-| `bulk`       | lesson-plan generation, career RAG        | Gemini → Groq → Ollama      |
+| task_type    | used for                               | provider → model-tier chain                                   |
+|--------------|----------------------------------------|---------------------------------------------------------------|
+| `fast`       | intent classification, short cheap calls | Groq `GROQ_FAST_MODEL` → Gemini `GEMINI_BULK_MODEL` → Ollama |
+| `smart`      | reasoning-heavy text (e.g. typed-answer feedback) | Groq `GROQ_SMART_MODEL` → Gemini `GEMINI_SMART_MODEL` → Ollama |
+| `multimodal` | image inputs (scanned-answer grading)  | Gemini `GEMINI_SMART_MODEL` only (no fallback)                |
+| `bulk`       | lesson-plan generation, career RAG     | Gemini `GEMINI_BULK_MODEL` → Groq `GROQ_SMART_MODEL` → Ollama  |
 
-Defaults: Groq `llama-3.3-70b-versatile`, Gemini `gemini-2.0-flash` (largest
-free-tier daily budget of the flash models), Ollama `llama3.2:3b`. Any image in the
-messages forces the `multimodal` chain regardless of the requested task type.
+Model tiers are env-overridable (the env var names appear in the table); the table is expressed in
+tiers, not literal model strings, so re-tiering is a config change, not a code
+change. Tier defaults: `GROQ_FAST_MODEL=openai/gpt-oss-20b`,
+`GROQ_SMART_MODEL=openai/gpt-oss-120b`, `GEMINI_BULK_MODEL=gemini-3.5-flash-lite`
+(⚠️ verify current free-tier quota in AI Studio), `GEMINI_SMART_MODEL=gemini-3.5-flash`;
+Ollama uses its client default `llama3.2:3b`. A **per-call `model=` override always
+wins** over the tier. Any image in the messages forces the `multimodal` chain
+regardless of the requested task type. Legacy `GROQ_MODEL` / `GEMINI_MODEL` env vars
+are still honoured — mapped onto the smart tier with a startup deprecation warning.
 
 **Fallback & retry policy.** On a `429` (rate limit) or unavailability, the router
 retries the *same* provider once — honouring the server's `retry-after`, with total

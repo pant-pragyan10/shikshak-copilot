@@ -42,6 +42,24 @@ class ProviderUnavailableError(ProviderError):
     """The provider is unreachable or returned a transient server error (5xx / connection)."""
 
 
+class ProviderModelNotFoundError(ProviderError):
+    """The requested model does not exist on the provider (likely deprecated/renamed).
+
+    The router treats this like :class:`ProviderUnavailableError` (fall back to the
+    next provider), but the message names the offending model so the operator can fix
+    the corresponding env var.
+    """
+
+    def __init__(self, model: str, *, provider: Provider | None = None) -> None:
+        self.model = model
+        message = (
+            f"Model '{model}' not found on provider '{provider}'. The provider may have "
+            "deprecated this model — check the provider's deprecations page and update the "
+            "corresponding env var."
+        )
+        super().__init__(message, provider=provider)
+
+
 class ProviderExhaustedError(ProviderError):
     """Every provider in the routing chain failed.
 

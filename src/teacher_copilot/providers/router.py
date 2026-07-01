@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from enum import StrEnum
 
 from teacher_copilot.config import Settings
 from teacher_copilot.providers.cache import ResponseCache
@@ -20,6 +21,7 @@ from teacher_copilot.providers.errors import (
     ProviderAuthError,
     ProviderError,
     ProviderExhaustedError,
+    ProviderModelNotFoundError,
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
@@ -46,17 +48,46 @@ __all__ = [
 
 logger = logging.getLogger("teacher_copilot.providers")
 
+class ModelTier(StrEnum):
+    """A (provider, workload) slot whose concrete model id comes from Settings.
+
+    Keeping the table in terms of tiers — not literal model strings — means model
+    churn is an env-var/Settings change, never a code change here.
+    """
+
+    GROQ_FAST = "groq_fast"
+    GROQ_SMART = "groq_smart"
+    GEMINI_BULK = "gemini_bulk"
+    GEMINI_SMART = "gemini_smart"
+    OLLAMA_DEFAULT = "ollama_default"  # use the Ollama client's own default model
+
+
 # --- Routing policy -------------------------------------------------------------
 # Explicit and declarative on purpose (not buried in if/else). Each task type maps
-# to an ordered provider chain; the router tries them left-to-right on failure.
+# to an ordered chain of (provider, model tier); the router tries them left-to-right
+# on failure. A per-call `model=` override always wins over the tier below.
 #
-#   fast       chat / intent / wellbeing — latency matters   -> Groq first
-#   multimodal image inputs (grading)    — Gemini only        -> no text fallback
-#   bulk       lesson-plan / career RAG  — big token budget   -> Gemini first
-ROUTING_TABLE: dict[TaskType, tuple[Provider, ...]] = {
-    "fast": (Provider.GROQ, Provider.GEMINI, Provider.OLLAMA),
-    "multimodal": (Provider.GEMINI,),
-    "bulk": (Provider.GEMINI, Provider.GROQ, Provider.OLLAMA),
+#   fast       intent / short cheap calls        -> Groq(fast)  -> Gemini(bulk) -> Ollama
+#   smart      reasoning-heavy text (grading FB)  -> Groq(smart) -> Gemini(smart)-> Ollama
+#   multimodal image inputs (scanned grading)     -> Gemini(smart) only, no fallback
+#   bulk       lesson-plan / career RAG synthesis -> Gemini(bulk) -> Groq(smart) -> Ollama
+ROUTING_TABLE: dict[TaskType, tuple[tuple[Provider, ModelTier], ...]] = {
+    "fast": (
+        (Provider.GROQ, ModelTier.GROQ_FAST),
+        (Provider.GEMINI, ModelTier.GEMINI_BULK),
+        (Provider.OLLAMA, ModelTier.OLLAMA_DEFAULT),
+    ),
+    "smart": (
+        (Provider.GROQ, ModelTier.GROQ_SMART),
+        (Provider.GEMINI, ModelTier.GEMINI_SMART),
+        (Provider.OLLAMA, ModelTier.OLLAMA_DEFAULT),
+    ),
+    "multimodal": ((Provider.GEMINI, ModelTier.GEMINI_SMART),),
+    "bulk": (
+        (Provider.GEMINI, ModelTier.GEMINI_BULK),
+        (Provider.GROQ, ModelTier.GROQ_SMART),
+        (Provider.OLLAMA, ModelTier.OLLAMA_DEFAULT),
+    ),
 }
 
 # Retry budget: at most one retry per provider; total sleep across the whole call
@@ -99,6 +130,21 @@ class ProviderRouter:
         # Ollama has no key; it is always a candidate (reachability decided at call time).
         clients[Provider.OLLAMA] = OllamaClient(settings.ollama_url)
         return clients
+
+    def _resolve_model(self, tier: ModelTier) -> str | None:
+        """Resolve a model tier to a concrete model id from Settings.
+
+        ``OLLAMA_DEFAULT`` returns None so the Ollama client uses its own default.
+        """
+        s = self._settings
+        table: dict[ModelTier, str | None] = {
+            ModelTier.GROQ_FAST: s.groq_fast_model,
+            ModelTier.GROQ_SMART: s.groq_smart_model,
+            ModelTier.GEMINI_BULK: s.gemini_bulk_model,
+            ModelTier.GEMINI_SMART: s.gemini_smart_model,
+            ModelTier.OLLAMA_DEFAULT: None,
+        }
+        return table[tier]
 
     @property
     def cache(self) -> ResponseCache:
@@ -145,7 +191,7 @@ class ProviderRouter:
         failures: dict[Provider, str] = {}
         wait_budget = self._max_total_wait
 
-        for provider in chain:
+        for provider, tier in chain:
             client = self._clients.get(provider)
             if client is None:
                 failures[provider] = "not configured"
@@ -154,11 +200,13 @@ class ProviderRouter:
                 failures[provider] = "disabled (auth failure earlier this run)"
                 continue
 
+            # Per-call override wins over the routing table's tier.
+            chosen_model = model if model is not None else self._resolve_model(tier)
             result, reason, wait_budget = await self._try_provider(
                 client,
                 provider,
                 messages,
-                model=model,
+                model=chosen_model,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 json_mode=json_mode,
@@ -221,6 +269,11 @@ class ProviderRouter:
                     "auth failure on %s — disabling for process lifetime: %s", provider, exc
                 )
                 return None, f"auth error: {exc}", wait_budget
+            except ProviderModelNotFoundError as exc:
+                # Model churn: no point retrying the same missing model — fall back
+                # immediately, but log the operator-facing guidance loudly.
+                logger.warning("model unavailable on %s — falling back: %s", provider, exc)
+                return None, str(exc), wait_budget
             except (ProviderRateLimitError, ProviderUnavailableError) as exc:
                 if attempt >= 1:
                     return None, str(exc), wait_budget  # already retried; fall back

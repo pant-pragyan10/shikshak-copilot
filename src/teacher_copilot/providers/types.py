@@ -22,8 +22,8 @@ class Provider(StrEnum):
     OLLAMA = "ollama"
 
 
-#: Routing categories. Each maps to an ordered provider chain in the router.
-TaskType = Literal["fast", "multimodal", "bulk"]
+#: Routing categories. Each maps to an ordered provider+model chain in the router.
+TaskType = Literal["fast", "smart", "multimodal", "bulk"]
 
 
 class TextPart(BaseModel):

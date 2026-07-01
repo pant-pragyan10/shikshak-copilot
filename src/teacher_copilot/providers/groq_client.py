@@ -16,12 +16,22 @@ from groq import AsyncGroq
 from teacher_copilot.providers.errors import (
     ProviderAuthError,
     ProviderError,
+    ProviderModelNotFoundError,
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
 from teacher_copilot.providers.types import ChatMessage, CompletionResult, Provider
 
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
+
+# Substrings Groq uses when a model id is unknown or retired.
+_MODEL_ERROR_HINTS = ("model_not_found", "does not exist", "decommission", "not found")
+
+
+def _looks_like_model_error(exc: groq.APIStatusError) -> bool:
+    """True if a 4xx error is really about the model id (unknown / decommissioned)."""
+    text = str(exc).lower()
+    return "model" in text and any(hint in text for hint in _MODEL_ERROR_HINTS)
 
 
 def _retry_after_seconds(exc: groq.APIStatusError) -> float | None:
@@ -81,10 +91,14 @@ class GroqClient:
             ) from exc
         except groq.AuthenticationError as exc:
             raise ProviderAuthError(str(exc), provider=self.provider) from exc
+        except groq.NotFoundError as exc:
+            raise ProviderModelNotFoundError(used_model, provider=self.provider) from exc
         except (groq.APIConnectionError, groq.InternalServerError) as exc:
             raise ProviderUnavailableError(str(exc), provider=self.provider) from exc
         except groq.APIStatusError as exc:
-            # Any other non-2xx: treat 5xx as transient, everything else as a hard error.
+            # Any other non-2xx: model-churn errors first, then 5xx transient, else hard.
+            if _looks_like_model_error(exc):
+                raise ProviderModelNotFoundError(used_model, provider=self.provider) from exc
             if exc.status_code >= 500:
                 raise ProviderUnavailableError(str(exc), provider=self.provider) from exc
             raise ProviderError(str(exc), provider=self.provider) from exc

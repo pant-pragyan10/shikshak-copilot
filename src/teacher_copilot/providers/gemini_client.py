@@ -17,6 +17,7 @@ from google.genai import types
 from teacher_copilot.providers.errors import (
     ProviderAuthError,
     ProviderError,
+    ProviderModelNotFoundError,
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
@@ -100,7 +101,7 @@ class GeminiClient:
                 model=used_model, contents=contents, config=config
             )
         except genai_errors.APIError as exc:
-            raise self._map_error(exc) from exc
+            raise self._map_error(exc, used_model) from exc
         latency_ms = (time.perf_counter() - started) * 1000
 
         usage = response.usage_metadata
@@ -113,12 +114,19 @@ class GeminiClient:
             latency_ms=latency_ms,
         )
 
-    def _map_error(self, exc: genai_errors.APIError) -> ProviderError:
+    def _map_error(self, exc: genai_errors.APIError, model: str) -> ProviderError:
         """Map a google-genai APIError onto the shared error hierarchy by status code."""
         code = getattr(exc, "code", None)
         message = getattr(exc, "message", None) or str(exc)
+        lowered = message.lower()
         if code == 429:
             return ProviderRateLimitError(message, provider=self.provider)
+        # 404, or a 400 that names a missing model, means the model id is gone/renamed.
+        names_missing_model = "model" in lowered and (
+            "not found" in lowered or "not supported" in lowered
+        )
+        if code == 404 or (code == 400 and names_missing_model):
+            return ProviderModelNotFoundError(model, provider=self.provider)
         if code in (401, 403):
             return ProviderAuthError(message, provider=self.provider)
         if code is not None and code >= 500:
