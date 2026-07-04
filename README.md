@@ -23,6 +23,9 @@ docker compose up -d qdrant
 uvicorn teacher_copilot.api.main:app --reload   # GET /health -> {"status": "ok"}
 ```
 
+> Building this in the open, phase by phase — see [`docs/JOURNAL.md`](docs/JOURNAL.md)
+> for the reasoning behind each step.
+
 ## Provider routing
 
 Every LLM call goes through a single `ProviderRouter` (`providers/router.py`). No
