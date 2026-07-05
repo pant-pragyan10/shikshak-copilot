@@ -1,31 +1,14 @@
-# Teacher Copilot — local infrastructure.
+# Teacher Copilot runs with NO Docker.
 #
-# Phase 0 ships Qdrant only (needed from Phase 2 onward). Langfuse is left as a
-# documented placeholder: its current self-host stack (v3) is a multi-service
-# deployment (Postgres + ClickHouse + Redis + MinIO) whose image tags drift, so
-# we do NOT guess it here. Phase 7 wires it in — see the TODO block below.
-
-services:
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: teacher-copilot-qdrant
-    ports:
-      - "6333:6333"   # REST / dashboard
-      - "6334:6334"   # gRPC
-    volumes:
-      - qdrant_storage:/qdrant/storage
-    restart: unless-stopped
-
-  # TODO(Phase 7): Langfuse self-host.
-  # The official, version-matched compose lives at:
-  #   https://github.com/langfuse/langfuse/blob/main/docker-compose.yml
-  # Vendor that file (or merge its services here) rather than hand-writing image
-  # tags. It brings its own postgres/clickhouse/redis/minio dependencies. Until
-  # then, LANGFUSE_* env vars stay empty and tracing runs in no-op mode.
-  #
-  # langfuse-web:
-  #   image: langfuse/langfuse:<pin-from-official-compose>
-  #   ...
-
-volumes:
-  qdrant_storage:
+# Qdrant runs in embedded local mode (QDRANT_MODE=embedded), in-process on disk at
+# QDRANT_PATH — no server, no compose, no daemon. This is the default and the only
+# mode the code exercises today.
+#
+# Server mode is an optional deployment choice (QDRANT_MODE=server + QDRANT_URL). If
+# you want a standalone Qdrant with its dashboard, run the official image directly:
+#
+#   docker run -p 6333:6333 -p 6334:6334 -v "$PWD/qdrant_storage:/qdrant/storage" \
+#       qdrant/qdrant:latest
+#
+# Langfuse (Phase 7 observability) will bring its own compose when wired in; see the
+# official self-host stack: https://github.com/langfuse/langfuse

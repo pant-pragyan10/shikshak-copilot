@@ -10,18 +10,22 @@ specialist agents:
 - **WellbeingAgent** — lightweight workload check-ins (not a diagnostic tool).
 - **CareerAgent** — upskilling / pivot suggestions over an Indian job-market corpus.
 
-Shared infra: a self-hosted **Qdrant** vector store, a **teacher profile/memory**
-layer, and a single **provider-router** (Groq → Gemini → Ollama) that every LLM
-call flows through. Embeddings run locally (BAAI/bge-m3). Zero paid APIs.
+Shared infra: an **embedded Qdrant** vector store (in-process, no server/Docker), a
+**teacher profile/memory** layer, and a single **provider-router**
+(Groq → Gemini → Ollama) that every LLM call flows through. Embeddings run locally
+(BAAI/bge-m3). Zero paid APIs.
 
 ## Quickstart
 
 ```bash
 uv sync            # or: pip install -e ".[dev]"
-cp .env.example .env
-docker compose up -d qdrant
+cp .env.example .env                            # add a GROQ/GEMINI key for the LLM path
 uvicorn teacher_copilot.api.main:app --reload   # GET /health -> {"status": "ok"}
+python scripts/chat_demo.py                      # talk to the orchestrator in your terminal
 ```
+
+No Docker required — Qdrant runs embedded on disk (`QDRANT_PATH`). Without provider
+keys the orchestrator still runs, falling back to its keyword intent heuristic.
 
 > Building this in the open, phase by phase — see [`docs/JOURNAL.md`](docs/JOURNAL.md)
 > for the reasoning behind each step.
@@ -65,11 +69,45 @@ than an error. Encoding the policy as a declarative routing table means scaling 
 re-tiering the system is a table edit, not a rewrite: callers ask for a `task_type`
 and never learn which provider served them.
 
+## Orchestrator
+
+A LangGraph `StateGraph` over `CopilotState` runs each turn: load the teacher's
+profile, classify intent, then route to the matching specialist (or the general
+path). `run_turn(graph, teacher_id, message, state)` is the single entry point.
+
+```
+              ┌──────────────┐     ┌─────────────────┐
+   START ───▶ │ load_profile │ ──▶ │ classify_intent │
+              └──────────────┘     └───────┬─────────┘
+                                           │  route by state.intent
+        ┌──────────────┬───────────────────┼──────────────┬───────────────┐
+        ▼              ▼                    ▼              ▼               ▼
+    ┌─────────┐  ┌────────────┐      ┌───────────┐   ┌────────┐   ┌──────────────────┐
+    │ grading │  │ lesson_plan│      │ wellbeing │   │ career │   │ general_response │
+    └────┬────┘  └─────┬──────┘      └─────┬─────┘   └───┬────┘   └────────┬─────────┘
+         └─────────────┴───────────────────┴─────────────┴─────────────────┘
+                                           ▼
+                                          END
+```
+
+**Intent classification** asks the `fast` tier for strict JSON
+(`{"intent", "confidence"}`) with few-shot examples in the Indian-teacher context.
+It is defensive by construction: malformed JSON triggers one corrective retry, then
+a documented keyword heuristic (confidence `0.3`); an LLM verdict below `0.5`
+confidence is downgraded to the safe `general` path. A bad model response never
+crashes the graph.
+
+The four specialist agents are still stubs (Phases 3–5), so their nodes return a
+graceful `not_implemented` output — the graph runs **end to end today** with real
+intent routing and a working general chat path. Memory is wired in: an embedded
+`VectorStore` (Phase 4 fills the RAG) and a JSON-file `ProfileStore` loaded into
+state at the start of every turn.
+
 ## Phase status
 
 - [x] **Phase 0** — repo scaffold, config, shared state, base classes, `/health` ✅
 - [x] **Phase 1** — provider routing + fallback + cache ✅
-- [ ] **Phase 2** — LangGraph orchestrator + intent routing + memory wiring ⬜
+- [x] **Phase 2** — LangGraph orchestrator + intent routing + memory wiring ✅
 - [ ] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ⬜
 - [ ] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ⬜
 - [ ] **Phase 5** — wellbeing + career agents ⬜

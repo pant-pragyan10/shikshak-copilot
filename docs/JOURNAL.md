@@ -108,11 +108,44 @@ don't break my own `.env` while migrating.
 
 ---
 
+## Phase 2 — orchestrator, intent routing, memory
+
+Now the pieces actually talk to each other. Built the LangGraph graph that runs a
+turn end to end: load the teacher's profile, classify what they want, route to the
+right specialist. The specialists are still stubs, so I made their nodes return a
+friendly "coming in Phase N" message instead of blowing up — the whole thing runs
+today, and the general chat path already works with real keys.
+
+A few decisions I want to remember:
+
+- **Embedded Qdrant.** No Docker on my machine, and honestly no reason to run a
+  server for dev. `QdrantClient(path=...)` keeps the index in-process on disk. The
+  catch is it's synchronous and SQLite-backed, so I pinned each store to a single
+  worker thread and wrapped it in an async facade. Kept a `QDRANT_MODE` switch so
+  swapping to a real server later is config, not code.
+- **Intent classification is defensive first.** The LLM returns strict JSON, but I
+  assume it will misbehave: bad JSON gets one corrective retry, then a keyword
+  heuristic takes over. And if the model says it's unsure (confidence < 0.5) I send
+  the turn to the general path rather than risk dumping a "I'm exhausted" message
+  into the grading agent. Misrouting a tired teacher into a grading flow is exactly
+  the kind of thing that makes a product feel dumb.
+- **One subtlety I hit:** the heuristic sets confidence 0.3, which is below the 0.5
+  threshold — so if I ran it through the same "downgrade to general" gate, the
+  keyword map would be pointless. The gate only applies to the LLM's own uncertainty;
+  when the LLM fails entirely, the heuristic's keyword decision is authoritative.
+- **Profiles as flat JSON files.** One file per teacher, written atomically. It's
+  deliberately boring — the interface (`load`/`save`/`append_workload`) is the
+  contract, and the backing store can become Postgres later without callers noticing.
+- **Toolchain reality:** typing under 3.12 now, because numpy's stubs (pulled in via
+  qdrant) use 3.12-only syntax. Runtime still supports 3.11.
+
+`scripts/chat_demo.py` lets me actually talk to it from the terminal, which is the
+first time this has felt like a real thing rather than plumbing.
+
+---
+
 ## What's next
 
-- **Phase 2** — wire up the LangGraph orchestrator, intent classification, and the
-  memory layer (Qdrant in embedded mode so there's still no Docker dependency for
-  dev).
 - **Phase 3** — the grading agent, including reading scanned answer sheets through
   the multimodal path, plus a consistency check so the same answer grades the same
   way twice.

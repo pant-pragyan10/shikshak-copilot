@@ -14,8 +14,9 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from enum import StrEnum
+from functools import lru_cache
 
-from teacher_copilot.config import Settings
+from teacher_copilot.config import Settings, get_settings
 from teacher_copilot.providers.cache import ResponseCache
 from teacher_copilot.providers.errors import (
     ProviderAuthError,
@@ -44,6 +45,7 @@ __all__ = [
     "Provider",
     "ProviderRouter",
     "ROUTING_TABLE",
+    "get_router",
 ]
 
 logger = logging.getLogger("teacher_copilot.providers")
@@ -306,3 +308,13 @@ class ProviderRouter:
                 entry["reachable"] = await client.reachable()
             report[provider.value] = entry
         return report
+
+
+@lru_cache(maxsize=1)
+def get_router() -> ProviderRouter:
+    """Return the process-wide :class:`ProviderRouter` (built from cached settings).
+
+    Construction is cheap and makes no network calls; provider clients are only
+    exercised when :meth:`ProviderRouter.complete` is invoked.
+    """
+    return ProviderRouter(get_settings())

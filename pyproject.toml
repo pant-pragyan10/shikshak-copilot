@@ -46,7 +46,11 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+# Typecheck under the interpreter we actually run (3.12). numpy's shipped stubs (via
+# qdrant-client) use 3.12-only `type X = ...` syntax that fails to parse under 3.11.
+# Runtime floor stays 3.11 (requires-python) and ruff's target-version=py311 guards
+# our own code against 3.11-incompatible syntax.
+python_version = "3.12"
 packages = ["teacher_copilot"]
 mypy_path = "src"
 strict = true
@@ -61,8 +65,15 @@ module = [
     "groq.*",
     "google.genai.*",
     "langfuse.*",
-    "langgraph.*",
 ]
+ignore_missing_imports = true
+
+# langgraph ships types, but its heavily-overloaded StateGraph/add_node generics add
+# no real safety to our graph wiring and fight strict mode. Treat it as untyped; the
+# orchestrator tests exercise the compiled graph end-to-end for real coverage.
+[[tool.mypy.overrides]]
+module = ["langgraph", "langgraph.*"]
+follow_imports = "skip"
 ignore_missing_imports = true
 
 [tool.ruff]

@@ -11,6 +11,7 @@ from __future__ import annotations
 import warnings
 from enum import StrEnum
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -83,8 +84,22 @@ class Settings(BaseSettings):
     )
 
     # --- Vector store ---
+    # Embedded is the default and the only mode exercised today: QdrantClient(path=...)
+    # runs in-process with no server and no Docker. `server` mode (using qdrant_url)
+    # is reserved for deployment and is a config switch, not a code change.
+    qdrant_mode: Literal["embedded", "server"] = Field(
+        default="embedded", description="Qdrant deployment mode."
+    )
+    qdrant_path: str = Field(
+        default="./qdrant_data", description="Embedded-mode on-disk storage directory."
+    )
     qdrant_url: str = Field(
-        default="http://localhost:6333", description="Self-hosted Qdrant base URL."
+        default="http://localhost:6333", description="Server-mode Qdrant base URL (future)."
+    )
+
+    # --- Profile store ---
+    profile_store_path: str = Field(
+        default="./data/profiles", description="Directory of per-teacher JSON profiles."
     )
 
     # --- Observability (optional; Phase 7) ---

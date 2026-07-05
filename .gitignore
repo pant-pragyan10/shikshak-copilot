@@ -27,7 +27,9 @@ htmlcov/
 # Local data (keep the folders via .gitkeep, ignore contents)
 data/curriculum/*
 data/career/*
+data/profiles/
 !data/**/.gitkeep
 
-# Qdrant / docker volumes
+# Qdrant (embedded local storage + any docker volume)
+qdrant_data/
 qdrant_storage/
