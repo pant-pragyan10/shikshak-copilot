@@ -61,13 +61,12 @@ class Settings(BaseSettings):
         default="openai/gpt-oss-120b",
         description="Groq model for main agent responses / reasoning-heavy text.",
     )
-    # !!! VERIFY BEFORE RELYING ON THIS DEFAULT !!!
-    # "gemini-3.5-flash-lite" is the *assumed* highest-free-quota flash-lite-class
-    # model. Google rotates model names and free-tier quotas — confirm the current
-    # best option on AI Studio's rate-limits page and update this default/env var:
-    #   https://ai.google.dev/gemini-api/docs/rate-limits
+    # gemini-3.1-flash-lite is the current cost-efficient flash-lite model with the
+    # most generous free-tier quota. Google rotates names/quotas — if you hit
+    # model-not-found or tighter limits, check AI Studio's rate-limits page and
+    # override this via GEMINI_BULK_MODEL: https://ai.google.dev/gemini-api/docs/rate-limits
     gemini_bulk_model: str = Field(
-        default="gemini-3.5-flash-lite",
+        default="gemini-3.1-flash-lite",
         description="Gemini model for high-volume RAG / lesson-plan synthesis (verify quota).",
     )
     gemini_smart_model: str = Field(

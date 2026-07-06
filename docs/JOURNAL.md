@@ -144,11 +144,52 @@ first time this has felt like a real thing rather than plumbing.
 
 ---
 
+## Phase 3 — the grading agent
+
+This is the one that matters. If the copilot does anything genuinely useful for a
+teacher, it's taking a chunk out of the evening spent marking papers. So I spent the
+most care here, mostly on the ways it can go *wrong*.
+
+The rule I kept coming back to: **never fabricate a grade.** A tool that confidently
+marks an unreadable or off-topic answer is worse than useless — a teacher would stop
+trusting it after one bad call. So the agent has a `needs_review` status it reaches
+for whenever the answer is illegible, looks like it's answering a different question,
+or the model just isn't sure. When parsing the model's output fails twice, it doesn't
+guess — it returns needs_review and keeps the raw text so I can see what happened.
+
+Other decisions:
+
+- **Always show the rubric.** If the teacher doesn't give one, the agent generates a
+  rubric from the question and their subject/grade, and returns it *with* the grade.
+  A mark without the rubric behind it is a black box; a mark with the rubric is
+  something a teacher can sanity-check in five seconds.
+- **Grade against the rubric, cite the answer.** The prompt makes the model quote the
+  student's own words in each justification. That's what makes it feel like margin
+  notes rather than a verdict from nowhere.
+- **Clamp and flag.** Models sometimes award 9 out of 3. I clamp every criterion to
+  its bounds and record the adjustment rather than trusting the raw number.
+- **Batch is deliberately throttled.** Marking a class set means dozens of answers,
+  but the free tiers cap requests per minute. Unbounded concurrency just trips 429s
+  and is slower overall, so batch grading runs through a semaphore. One answer failing
+  doesn't sink the rest — it comes back as a `GradingError` in its slot.
+
+The thing that actually bit me: Groq's strict JSON mode (`json_object`) *rejects* the
+gpt-oss reasoning models with `json_validate_failed` — they like to wrap their JSON
+in a sentence of reasoning. So I added `extract_json`, a tolerant extractor that pulls
+the object out of prose/markdown fences, and made the Groq client quietly retry
+without strict JSON mode when it hits that error. Fixed the grading path and, as a
+bonus, the intent classifier that had been silently falling back to keywords since
+Phase 2.
+
+There's an eval script (`scripts/eval_grading.py`) that grades the same answers a few
+times and reports how much the marks wobble between runs — consistency is the metric
+a teacher would actually care about. Runs against the live API, so it's not in the
+test suite.
+
+---
+
 ## What's next
 
-- **Phase 3** — the grading agent, including reading scanned answer sheets through
-  the multimodal path, plus a consistency check so the same answer grades the same
-  way twice.
 - **Phase 4** — lesson plans grounded in a real CBSE/ICSE curriculum corpus, with
   citations, so it can't invent syllabus content.
 - **Phase 5** — the well-being and career agents.

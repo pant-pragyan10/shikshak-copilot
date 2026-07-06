@@ -1,0 +1,40 @@
+[
+  {
+    "id": "sci9_photosynthesis",
+    "subject": "Science",
+    "grade_level": "9",
+    "question": "Define photosynthesis and state where in the plant cell it occurs.",
+    "answer_text": "Photosynthesis is the process by which green plants make their own food using sunlight, carbon dioxide and water. It happens in the chloroplasts which contain chlorophyll.",
+    "rubric": {
+      "criteria": [
+        {"name": "Definition", "description": "Correctly defines photosynthesis (light, CO2, water -> food).", "max_marks": 3},
+        {"name": "Location", "description": "Identifies chloroplasts / chlorophyll.", "max_marks": 2}
+      ]
+    },
+    "note": "Strong, complete answer with a teacher-supplied rubric."
+  },
+  {
+    "id": "eng7_paragraph",
+    "subject": "English",
+    "grade_level": "7",
+    "question": "Write a short paragraph (3-4 sentences) about your favourite festival and why you like it.",
+    "answer_text": "My favourite festival is Diwali. We clean the house and make rangoli. At night we light diyas and burst crackers with family. I like it because everyone is happy and we get sweets.",
+    "note": "No rubric supplied -> the agent should auto-generate one."
+  },
+  {
+    "id": "sci9_weak_answer",
+    "subject": "Science",
+    "grade_level": "9",
+    "question": "Explain why we feel cold when we step out of a swimming pool.",
+    "answer_text": "Because water is cold and the wind blows on us so we feel cold outside.",
+    "note": "Deliberately weak/incomplete: misses evaporation causing cooling."
+  },
+  {
+    "id": "offtopic_needs_review",
+    "subject": "Science",
+    "grade_level": "9",
+    "question": "State Newton's first law of motion with an example.",
+    "answer_text": "The mitochondria is the powerhouse of the cell and it produces energy for the body.",
+    "note": "Answer is for a completely different question -> should trigger needs_review."
+  }
+]

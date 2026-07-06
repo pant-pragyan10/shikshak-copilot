@@ -235,7 +235,7 @@ async def test_routing_resolves_model_per_tier() -> None:
     router, groq, gemini, _ = make_router()
     bulk = await router.complete(_msg(), task_type="bulk")
     assert bulk.provider is Provider.GEMINI
-    assert gemini.models == ["gemini-3.5-flash-lite"]  # GEMINI_BULK_MODEL
+    assert gemini.models == ["gemini-3.1-flash-lite"]  # GEMINI_BULK_MODEL
 
     router, groq, gemini, _ = make_router()
     mm = await router.complete(

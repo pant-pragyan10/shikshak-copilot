@@ -34,6 +34,17 @@ def _looks_like_model_error(exc: groq.APIStatusError) -> bool:
     return "model" in text and any(hint in text for hint in _MODEL_ERROR_HINTS)
 
 
+def _is_json_validate_failed(exc: groq.APIStatusError) -> bool:
+    """True when Groq rejected strict json_object mode (common with gpt-oss models).
+
+    These reasoning models emit a bit of prose around the JSON, which Groq's
+    server-side ``json_object`` validator rejects with ``json_validate_failed``. The
+    fix is to retry without ``response_format`` and let the caller's ``extract_json``
+    recover the object from the free-form text.
+    """
+    return "json_validate_failed" in str(exc).lower()
+
+
 def _retry_after_seconds(exc: groq.APIStatusError) -> float | None:
     """Best-effort extraction of a ``retry-after`` header (seconds) from an error."""
     response = getattr(exc, "response", None)
@@ -84,7 +95,7 @@ class GroqClient:
 
         started = time.perf_counter()
         try:
-            response = await self._client.chat.completions.create(**kwargs)
+            response = await self._create(kwargs)
         except groq.RateLimitError as exc:
             raise ProviderRateLimitError(
                 str(exc), provider=self.provider, retry_after=_retry_after_seconds(exc)
@@ -114,6 +125,20 @@ class GroqClient:
             output_tokens=getattr(usage, "completion_tokens", 0) or 0,
             latency_ms=latency_ms,
         )
+
+    async def _create(self, kwargs: dict[str, Any]) -> Any:
+        """Create a completion, degrading gracefully out of strict JSON mode.
+
+        If Groq rejects ``response_format=json_object`` (``json_validate_failed``),
+        retry once as free-form text. The caller recovers the JSON via extract_json.
+        """
+        try:
+            return await self._client.chat.completions.create(**kwargs)
+        except groq.APIStatusError as exc:
+            if "response_format" in kwargs and _is_json_validate_failed(exc):
+                relaxed = {k: v for k, v in kwargs.items() if k != "response_format"}
+                return await self._client.chat.completions.create(**relaxed)
+            raise
 
     async def reachable(self) -> bool:
         """Configured Groq clients are assumed reachable (avoid burning quota to probe)."""

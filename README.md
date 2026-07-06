@@ -97,18 +97,72 @@ a documented keyword heuristic (confidence `0.3`); an LLM verdict below `0.5`
 confidence is downgraded to the safe `general` path. A bad model response never
 crashes the graph.
 
-The four specialist agents are still stubs (Phases 3–5), so their nodes return a
-graceful `not_implemented` output — the graph runs **end to end today** with real
-intent routing and a working general chat path. Memory is wired in: an embedded
-`VectorStore` (Phase 4 fills the RAG) and a JSON-file `ProfileStore` loaded into
-state at the start of every turn.
+Grading is live (Phase 3); lesson_plan / wellbeing / career are still stubs whose
+nodes return a graceful `not_implemented` output — the graph runs **end to end
+today** with real intent routing and a working general chat path. Memory is wired
+in: an embedded `VectorStore` (Phase 4 fills the RAG) and a JSON-file `ProfileStore`
+loaded into state at the start of every turn.
+
+## Grading agent
+
+The flagship feature: grades typed or scanned student answers against a rubric and
+returns structured, teacher-style feedback.
+
+```
+   answer (+ optional rubric)
+            │
+            ▼
+   ┌──────────────────┐   no rubric?   ┌────────────────────┐
+   │  rubric present? │ ─────────────▶ │  auto-generate it  │  (smart tier, shown
+   └────────┬─────────┘                └─────────┬──────────┘   in the result)
+            │ yes                                │
+            ▼                                    ▼
+   ┌───────────────────────────────────────────────────────┐
+   │  grade against rubric                                  │
+   │   • text  → smart tier                                 │
+   │   • image → multimodal tier (Gemini vision)            │
+   └───────────────────────┬───────────────────────────────┘
+                           ▼
+   ┌───────────────────────────────────────────────────────┐
+   │  validate: extract_json → Pydantic → clamp to bounds   │
+   │   • parse fails (x2) ─▶ needs_review (raw preserved)   │
+   │   • marks over max    ─▶ clamped + flagged             │
+   └───────────────────────┬───────────────────────────────┘
+                           ▼
+              GradedResult (scores + justifications,
+              strengths, improvements, %, rubric shown)
+```
+
+**Never fabricate a grade.** If an answer is illegible, appears to answer a
+different question, or the model isn't confident, the result is
+`status="needs_review"` with the raw output preserved — not an invented mark. Marks
+that exceed a criterion's max are clamped and the adjustment is flagged. Each
+justification must cite the student's own words, and the tone is kind but honest —
+it should read like a good teacher's margin notes.
+
+**Auto-rubric, always shown.** If the teacher gives no rubric, one is generated from
+the question + their profile (subject/grade) and returned in the result
+(`rubric_source="auto"`), so the grade is always explainable.
+
+**Batch design.** `grade_batch()` bounds concurrency with an `asyncio.Semaphore`
+(default 3) — free-tier RPM limits make unbounded fan-out self-defeating (just 429s).
+A single failed item is wrapped as a `GradingError` and never sinks the rest.
+
+**Consistency eval** (live API, costs quota):
+
+```bash
+python scripts/eval_grading.py --runs 3      # per-criterion mark variance + needs_review
+```
+
+It grades a built-in sample set (`data/eval/grading_samples.json`) N times and
+reports how stable the marks are across runs — the grading-consistency metric.
 
 ## Phase status
 
 - [x] **Phase 0** — repo scaffold, config, shared state, base classes, `/health` ✅
 - [x] **Phase 1** — provider routing + fallback + cache ✅
 - [x] **Phase 2** — LangGraph orchestrator + intent routing + memory wiring ✅
-- [ ] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ⬜
+- [x] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ✅
 - [ ] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ⬜
 - [ ] **Phase 5** — wellbeing + career agents ⬜
 - [ ] **Phase 6** — FastAPI SSE endpoints + Next.js frontend (`/web`) ⬜

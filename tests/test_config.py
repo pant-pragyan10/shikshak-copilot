@@ -16,7 +16,7 @@ def test_model_tier_defaults() -> None:
     settings = _settings()
     assert settings.groq_fast_model == "openai/gpt-oss-20b"
     assert settings.groq_smart_model == "openai/gpt-oss-120b"
-    assert settings.gemini_bulk_model == "gemini-3.5-flash-lite"
+    assert settings.gemini_bulk_model == "gemini-3.1-flash-lite"
     assert settings.gemini_smart_model == "gemini-3.5-flash"
 
 
@@ -38,7 +38,7 @@ def test_legacy_gemini_model_maps_to_smart_tier_with_warning(
     with pytest.warns(DeprecationWarning, match="GEMINI_MODEL is deprecated"):
         settings = _settings()
     assert settings.gemini_smart_model == "legacy-gemini"
-    assert settings.gemini_bulk_model == "gemini-3.5-flash-lite"
+    assert settings.gemini_bulk_model == "gemini-3.1-flash-lite"
 
 
 def test_no_warning_without_legacy_vars(recwarn: pytest.WarningsRecorder) -> None:

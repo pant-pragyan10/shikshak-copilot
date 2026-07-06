@@ -10,10 +10,9 @@ LangGraph merges. We keep ``CopilotState`` as the domain object and never let gr
 concerns leak into it — the only adaptation is that ``ainvoke`` returns a plain dict,
 which :func:`run_turn` revalidates back into a ``CopilotState``.
 
-The specialist agents (grading/lesson_plan/wellbeing/career) are still Phase 0 stubs
-that raise ``NotImplementedError``. Their nodes catch that and emit a graceful
-``not_implemented`` output, so the graph runs end-to-end **today** with real intent
-classification and a working general path.
+Grading is live (Phase 3). The other specialists (lesson_plan/wellbeing/career) are
+still Phase 0 stubs that raise ``NotImplementedError``; their nodes catch that and
+emit a graceful ``not_implemented`` output, so the graph always runs end-to-end.
 """
 
 from __future__ import annotations
@@ -150,8 +149,10 @@ def build_graph(
     router = router or get_router()
     profile_store = profile_store or get_profile_store()
 
+    # Grading is live (Phase 3) and shares the graph's router. The others are still
+    # stubs whose nodes emit a graceful "coming soon" reply (see _make_agent_node).
     agents: list[BaseAgent] = [
-        GradingAgent(),
+        GradingAgent(router=router),
         LessonPlanAgent(),
         WellbeingAgent(),
         CareerAgent(),

@@ -9,12 +9,11 @@ crash on a malformed LLM response — a misroute is recoverable, a crash is not.
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 
 from teacher_copilot.orchestrator.state import CopilotState, Intent
 from teacher_copilot.providers.errors import ProviderError
+from teacher_copilot.providers.json_utils import JSONExtractionError, extract_json
 from teacher_copilot.providers.router import ChatMessage, ProviderRouter, get_router
 
 logger = logging.getLogger("teacher_copilot.orchestrator")
@@ -81,20 +80,11 @@ def _last_user_message(state: CopilotState) -> str | None:
 
 def _parse_verdict(text: str) -> tuple[Intent, float] | None:
     """Parse a ``{"intent": ..., "confidence": ...}`` object; None if unusable."""
-    candidate = text.strip()
-    if not candidate:
-        return None
     try:
-        data = json.loads(candidate)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", candidate, re.DOTALL)
-        if not match:
-            return None
-        try:
-            data = json.loads(match.group(0))
-        except json.JSONDecodeError:
-            return None
-    if not isinstance(data, dict) or "intent" not in data:
+        data = extract_json(text)
+    except JSONExtractionError:
+        return None
+    if "intent" not in data:
         return None
     raw_intent = str(data["intent"]).strip().lower()
     if raw_intent not in set(Intent):

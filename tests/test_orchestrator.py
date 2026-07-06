@@ -96,7 +96,8 @@ async def test_empty_message_is_general() -> None:
 @pytest.mark.parametrize(
     ("intent", "expected_agent", "expected_type"),
     [
-        ("grading", "grading", "not_implemented"),
+        # grading is live (Phase 3); the rest are still graceful stubs.
+        ("grading", "grading", "grading"),
         ("lesson_plan", "lesson_plan", "not_implemented"),
         ("wellbeing", "wellbeing", "not_implemented"),
         ("career", "career", "not_implemented"),
@@ -119,12 +120,13 @@ async def test_graph_routes_each_intent(
 
 
 async def test_stub_agent_produces_graceful_output(tmp_path: object) -> None:
-    router = FakeRouter(intent="grading", confidence=0.99)
+    # lesson_plan is still a stub (Phase 4); its node returns a graceful message.
+    router = FakeRouter(intent="lesson_plan", confidence=0.99)
     graph = build_graph(router=router, profile_store=ProfileStore(base_path=str(tmp_path)))
-    state = await run_turn(graph, "t1", "check these answers")
+    state = await run_turn(graph, "t1", "plan chapter 4 of class 8 maths")
     assert state.agent_output is not None
-    assert state.agent_output["agent"] == "grading"
-    assert state.agent_output["phase"] == 3
+    assert state.agent_output["agent"] == "lesson_plan"
+    assert state.agent_output["phase"] == 4
     assert "isn't available yet" in state.messages[-1].content
 
 
