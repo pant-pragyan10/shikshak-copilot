@@ -168,12 +168,18 @@ class ProviderRouter:
         temperature: float = 0.7,
         max_tokens: int = 1024,
         json_mode: bool = False,
+        validate: Callable[[CompletionResult], bool] | None = None,
     ) -> CompletionResult:
         """Complete ``messages``, choosing a provider per the routing table.
 
         Falls back down the chain on rate-limit / unavailability, retries once per
         provider (honouring ``retry_after``), and consults the cache when
         ``cacheable`` is set. Raises :class:`ProviderExhaustedError` if all fail.
+
+        ``validate`` lets a caller gate caching on its own success criterion (e.g. "the
+        JSON parses into my schema"). A response that fails ``validate`` is never
+        written to the cache, and an existing cached entry that fails it is treated as a
+        miss and regenerated — so one malformed completion can't poison a key forever.
         """
         # Image inputs force the multimodal chain regardless of the caller's task_type,
         # so text-only providers never silently drop a scanned answer.
@@ -197,13 +203,15 @@ class ProviderRouter:
                     json_mode=json_mode,
                 )
                 hit = await self._cache.get(cache_key)
-                if hit is not None:
+                if hit is not None and (validate is None or validate(hit)):
                     logger.info("cache hit provider=%s model=%s", hit.provider, hit.model)
                     span.update(
                         model=hit.model,
                         metadata={"provider": str(hit.provider), "cache": "hit"},
                     )
                     return hit
+                if hit is not None:
+                    logger.info("cached response failed validation, regenerating")
                 logger.debug("cache miss key=%s", cache_key[:12])
 
             failures: dict[Provider, str] = {}
@@ -240,7 +248,7 @@ class ProviderRouter:
                             result.model,
                             result.latency_ms,
                         )
-                    if cache_key is not None:
+                    if cache_key is not None and (validate is None or validate(result)):
                         await self._cache.set(cache_key, result)
                     span.update(
                         model=result.model,

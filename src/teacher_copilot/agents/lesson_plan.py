@@ -179,6 +179,9 @@ class LessonPlanAgent(BaseAgent):
                     cacheable=True,
                     temperature=_PLAN_TEMPERATURE,
                     max_tokens=2048,
+                    # Only cache a completion that actually parses into our schema, so a
+                    # one-off malformed/truncated response can't poison this key forever.
+                    validate=lambda c: _parse_plan(c.text) is not None,
                 )
             except ProviderError as exc:
                 logger.warning("lesson plan provider call failed: %s", exc)

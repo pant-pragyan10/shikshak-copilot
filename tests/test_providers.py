@@ -174,6 +174,35 @@ async def test_non_cacheable_calls_bypass_cache() -> None:
     assert groq.calls == 2
 
 
+async def test_response_failing_validate_is_not_cached() -> None:
+    # A completion the caller rejects (e.g. unparseable JSON) must never be cached,
+    # so a later call regenerates instead of being served a known-bad response.
+    groq = FakeClient(Provider.GROQ)  # always returns text="ok"
+    router = ProviderRouter(_settings(), clients={Provider.GROQ: groq})
+    reject = lambda c: False  # noqa: E731
+
+    await router.complete(_msg(), task_type="fast", cacheable=True, validate=reject)
+    await router.complete(_msg(), task_type="fast", cacheable=True, validate=reject)
+
+    assert groq.calls == 2  # nothing was cached
+    assert router.cache.stats()["hits"] == 0
+
+
+async def test_poisoned_cache_entry_self_heals() -> None:
+    # An entry cached without validation that a later validated caller rejects must be
+    # treated as a miss and regenerated — one bad completion can't poison a key forever.
+    groq = FakeClient(Provider.GROQ)  # always returns text="ok"
+    router = ProviderRouter(_settings(), clients={Provider.GROQ: groq})
+
+    await router.complete(_msg(), task_type="fast", cacheable=True)  # caches "ok"
+    assert groq.calls == 1
+
+    only_good = lambda c: c.text == "good"  # noqa: E731
+    await router.complete(_msg(), task_type="fast", cacheable=True, validate=only_good)
+
+    assert groq.calls == 2  # cached "ok" rejected -> regenerated
+
+
 async def test_retry_after_is_honored_and_capped() -> None:
     # First attempt asks for a 100s wait; the router caps total wait at 10s.
     groq = FakeClient(
