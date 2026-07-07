@@ -16,7 +16,7 @@ growth.** Built on LangGraph, served over REST + SSE, with a polished Next.js fr
 <img alt="tests" src="https://img.shields.io/badge/tests-137%20passing-2ea44f">
 </p>
 
-**🔗 Live demo:** _add your Vercel URL_ · **API:** _add your Render/Railway URL_ ·
+**🔗 Live demo:** [shikshak-copilot.vercel.app](https://shikshak-copilot.vercel.app) · **API:** [pant-pragyan10-teacher-copilot-api.hf.space](https://pant-pragyan10-teacher-copilot-api.hf.space/docs) ·
 **📓 [Build journal](docs/JOURNAL.md)** · **📊 [Evaluation](eval/README.md)**
 
 <!-- Add a screenshot of the Chat screen (with a grounded lesson-plan card) at
