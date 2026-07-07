@@ -17,7 +17,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Teacher Copilot — an AI assistant for teachers in India",
+  title: "Shikshak Copilot — an AI assistant for teachers in India",
   description:
     "Grade answers (typed or scanned), plan curriculum-grounded lessons, reflect on workload, and explore career growth — a multi-agent copilot built for Indian classrooms.",
 };

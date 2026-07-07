@@ -193,7 +193,7 @@ export function ChatView() {
               streaming={streaming}
             />
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              Teacher Copilot can make mistakes. Grades and plans are drafts — review before use.
+              Shikshak Copilot can make mistakes. Grades and plans are drafts — review before use.
             </p>
           </div>
         </div>
