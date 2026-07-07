@@ -96,6 +96,21 @@ class Settings(BaseSettings):
         default="http://localhost:6333", description="Server-mode Qdrant base URL (future)."
     )
 
+    # --- Embeddings (local, no API) ---
+    # BAAI/bge-m3 is multilingual — it handles English, Hindi, and Hinglish, which
+    # matters for this market. Runs locally via sentence-transformers: no embedding
+    # API, no cost, no rate limit, and no student data ever leaves the machine.
+    embedding_model: str = Field(default="BAAI/bge-m3", description="Local embedding model id.")
+    embedding_device: str = Field(default="cpu", description="Embedding device: cpu | cuda.")
+
+    # --- Curriculum / RAG ---
+    curriculum_path: str = Field(
+        default="./data/curriculum", description="Source docs for curriculum ingestion."
+    )
+    curriculum_collection: str = Field(
+        default="curriculum", description="Qdrant collection holding curriculum chunks."
+    )
+
     # --- Profile store ---
     profile_store_path: str = Field(
         default="./data/profiles", description="Directory of per-teacher JSON profiles."

@@ -29,6 +29,7 @@ from teacher_copilot.agents.grading import GradingAgent
 from teacher_copilot.agents.lesson_plan import LessonPlanAgent
 from teacher_copilot.agents.wellbeing import WellbeingAgent
 from teacher_copilot.memory.profile import ProfileStore, get_profile_store
+from teacher_copilot.memory.retrieval import Retriever
 from teacher_copilot.orchestrator.intent import classify_intent
 from teacher_copilot.orchestrator.state import CopilotState, Intent, Message
 from teacher_copilot.providers.errors import ProviderError
@@ -135,13 +136,17 @@ def _route_by_intent(state: CopilotState) -> str:
 
 
 def build_graph(
-    *, router: ProviderRouter | None = None, profile_store: ProfileStore | None = None
+    *,
+    router: ProviderRouter | None = None,
+    profile_store: ProfileStore | None = None,
+    retriever: Retriever | None = None,
 ) -> Any:
     """Build and compile the orchestrator LangGraph.
 
     Args:
         router: Provider router for LLM calls (defaults to the process-wide router).
         profile_store: Teacher profile store (defaults to the process-wide store).
+        retriever: Curriculum retriever for lesson planning (defaults to the shared one).
 
     Returns:
         A compiled LangGraph runnable over :class:`CopilotState`.
@@ -149,11 +154,11 @@ def build_graph(
     router = router or get_router()
     profile_store = profile_store or get_profile_store()
 
-    # Grading is live (Phase 3) and shares the graph's router. The others are still
-    # stubs whose nodes emit a graceful "coming soon" reply (see _make_agent_node).
+    # Grading (Phase 3) and lesson planning (Phase 4) are live and share the graph's
+    # router. Wellbeing/career are still stubs whose nodes emit a graceful reply.
     agents: list[BaseAgent] = [
         GradingAgent(router=router),
-        LessonPlanAgent(),
+        LessonPlanAgent(router=router, retriever=retriever),
         WellbeingAgent(),
         CareerAgent(),
     ]

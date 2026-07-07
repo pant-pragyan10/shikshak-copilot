@@ -188,10 +188,59 @@ test suite.
 
 ---
 
+## Phase 4 — lesson planning and RAG
+
+Two things landed together here: the retrieval layer (local embeddings + hybrid
+search over Qdrant) and the lesson-planning agent that sits on top of it.
+
+The philosophy is the same one from grading, just pointed at a different failure
+mode. Grading's rule was "never fabricate a mark." Here it's "never fabricate
+*syllabus*." An LLM will happily invent a confident, plausible, and completely wrong
+"CBSE class 8 chapter on X" — and a teacher who trusts that once won't trust it
+again. So a plan carries a `grounding` flag: it's only `curriculum_grounded` when
+retrieval actually found relevant chunks; if it found nothing, the plan comes back
+labelled `general_knowledge` with a disclaimer and no citations. And the citations
+are built from the *real retrieved text*, not from whatever the model claims — the
+model grounds the content, the retrieval layer owns the provenance.
+
+Decisions worth writing down:
+
+- **Embeddings run locally, on purpose.** BAAI/bge-m3 via sentence-transformers. It's
+  multilingual (English/Hindi/Hinglish, which is how people actually talk in these
+  classrooms), but the bigger reason is that it costs nothing, has no rate limit, and
+  means curriculum and student text never leave the machine to be embedded. For a
+  product pitched at schools, "your data doesn't go to a third party for embedding"
+  is a real selling point, not a footnote. The cost is a ~2GB one-time download and a
+  heavy synchronous model, so loading and encoding both get pushed onto a thread.
+- **Hybrid search, and honest about what it is.** Dense recall finds semantically
+  similar chunks; a small BM25 re-rank over that candidate pool rewards exact keyword
+  hits (topic and formula names) that pure embeddings tend to under-weight. It's a
+  pragmatic blend, not a real sparse index — BM25 only ever sees what dense retrieval
+  already pulled. I wrote that limitation into the module docstring rather than
+  pretending it's more than it is. For a small corpus it's plenty.
+- **The grounded/partial/general decision uses the *raw* cosine score, not the
+  re-ranked one.** This one bit me while designing it: min-max normalising the final
+  scores makes the best chunk in any pool look like a 1.0, even when everything in the
+  pool is junk. So "did we actually find relevant curriculum?" has to be answered with
+  the absolute similarity, before normalisation.
+- **Lesson plans are cacheable.** Same topic, subject, grade, duration over the same
+  corpus produces an identical prompt, so the Phase 1 response cache turns a repeat
+  request into a free hit. This is the first place that cache really earns its keep —
+  bulk generation is the expensive call.
+- **Ingestion is idempotent.** Re-running deletes a file's old chunks before
+  re-upserting (delete-by-source-filter), so you can edit a curriculum file and
+  re-ingest without piling up duplicates.
+
+Smoke test end to end: ingested the little synthetic sample corpus, asked for a
+class-8 lesson on reflection of light, and got back a plan whose objectives and
+activities were visibly lifted from the sample chapter — torch, mirror, protractor,
+the two laws of reflection — with the source file cited. That's the whole point: not
+a generic plan, but one grounded in *this* curriculum.
+
+---
+
 ## What's next
 
-- **Phase 4** — lesson plans grounded in a real CBSE/ICSE curriculum corpus, with
-  citations, so it can't invent syllabus content.
 - **Phase 5** — the well-being and career agents.
 - **Phase 6** — FastAPI streaming endpoints and a frontend.
 - **Phase 7** — tracing, evals, and polishing the docs.

@@ -93,12 +93,19 @@ async def test_empty_message_is_general() -> None:
 # --- graph routing --------------------------------------------------------------
 
 
+class _EmptyRetriever:
+    """No-op retriever so the lesson_plan node never loads the real embedder in tests."""
+
+    async def retrieve(self, query: str, **kwargs: object) -> list[object]:
+        return []
+
+
 @pytest.mark.parametrize(
     ("intent", "expected_agent", "expected_type"),
     [
-        # grading is live (Phase 3); the rest are still graceful stubs.
+        # grading (Phase 3) and lesson_plan (Phase 4) are live; the rest are stubs.
         ("grading", "grading", "grading"),
-        ("lesson_plan", "lesson_plan", "not_implemented"),
+        ("lesson_plan", "lesson_plan", "lesson_plan"),
         ("wellbeing", "wellbeing", "not_implemented"),
         ("career", "career", "not_implemented"),
         ("general", "general", "general"),
@@ -108,7 +115,11 @@ async def test_graph_routes_each_intent(
     tmp_path: object, intent: str, expected_agent: str, expected_type: str
 ) -> None:
     router = FakeRouter(intent=intent, confidence=0.95, reply="Namaste! How can I help today?")
-    graph = build_graph(router=router, profile_store=ProfileStore(base_path=str(tmp_path)))
+    graph = build_graph(
+        router=router,
+        profile_store=ProfileStore(base_path=str(tmp_path)),
+        retriever=_EmptyRetriever(),  # type: ignore[arg-type]
+    )
 
     state = await run_turn(graph, "t1", "some teacher message")
 
@@ -120,13 +131,13 @@ async def test_graph_routes_each_intent(
 
 
 async def test_stub_agent_produces_graceful_output(tmp_path: object) -> None:
-    # lesson_plan is still a stub (Phase 4); its node returns a graceful message.
-    router = FakeRouter(intent="lesson_plan", confidence=0.99)
+    # wellbeing is still a stub (Phase 5); its node returns a graceful message.
+    router = FakeRouter(intent="wellbeing", confidence=0.99)
     graph = build_graph(router=router, profile_store=ProfileStore(base_path=str(tmp_path)))
-    state = await run_turn(graph, "t1", "plan chapter 4 of class 8 maths")
+    state = await run_turn(graph, "t1", "I'm exhausted after invigilation duty")
     assert state.agent_output is not None
-    assert state.agent_output["agent"] == "lesson_plan"
-    assert state.agent_output["phase"] == 4
+    assert state.agent_output["agent"] == "wellbeing"
+    assert state.agent_output["phase"] == 5
     assert "isn't available yet" in state.messages[-1].content
 
 

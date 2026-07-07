@@ -157,13 +157,63 @@ python scripts/eval_grading.py --runs 3      # per-criterion mark variance + nee
 It grades a built-in sample set (`data/eval/grading_samples.json`) N times and
 reports how stable the marks are across runs — the grading-consistency metric.
 
+## Lesson planning + RAG
+
+Lesson plans are **grounded in retrieved curriculum and cite their sources** — the
+same "never fabricate" trust rule as grading, applied to syllabus content.
+
+```
+  data/curriculum/*.md,.txt,.pdf
+            │  load + parse (front-matter / sidecar json)
+            ▼
+       structure-aware chunking  (headings/paragraphs, ~650 tok, 80 overlap)
+            │
+            ▼
+     BGE-M3 embeddings (LOCAL) ──▶ Qdrant "curriculum" collection   [ingest]
+            ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+   "plan a lesson on reflection of light, class 8"                 [query]
+            │
+            ▼
+   hybrid retrieve = dense (BGE-M3 cosine) + BM25 keyword re-rank
+            │        + subject/grade/board metadata filters
+            ▼
+   grounded generate (bulk tier, cacheable) ──▶ LessonPlan + Citations + grounding
+```
+
+**Grounding is a trust signal.** A plan is `curriculum_grounded` only when retrieval
+finds ≥2 chunks above a real cosine-relevance bar; one weak hit → `partial`; nothing
+relevant → `general_knowledge` with an explicit disclaimer and **no citations**. It
+never dresses up general knowledge as syllabus-aligned. Citations are built from the
+actual retrieved text, never invented by the model.
+
+**Hybrid search — honest about the limits.** Dense recall (BGE-M3) surfaces a
+candidate pool; a lightweight BM25 scorer re-ranks it to reward exact keyword matches
+(topic/formula names) that embeddings under-weight; the final score blends the two
+(0.6 dense / 0.4 keyword, normalised). It's a *pragmatic* hybrid, not a production
+sparse index — BM25 only sees what dense retrieval already surfaced. Fine for a small
+curriculum corpus; a real deployment would add a proper inverted index or Qdrant
+sparse vectors. No heavy new dependency.
+
+**Local embeddings = cost + privacy win.** Embeddings run on-device via
+`sentence-transformers` BAAI/bge-m3 (multilingual — English + Hindi + Hinglish). No
+embedding API, no per-token cost, no rate limit, and **no student or curriculum text
+ever leaves the machine to be embedded** — a genuine selling point for schools. First
+run downloads the model (~2GB) once.
+
+```bash
+python scripts/ingest_curriculum.py     # embed + index the sample corpus into Qdrant
+python scripts/chat_demo.py             # then ask for a lesson plan → grounded + cited
+```
+
+A tiny synthetic sample corpus ships in `data/curriculum/` so RAG works out of the box.
+
 ## Phase status
 
 - [x] **Phase 0** — repo scaffold, config, shared state, base classes, `/health` ✅
 - [x] **Phase 1** — provider routing + fallback + cache ✅
 - [x] **Phase 2** — LangGraph orchestrator + intent routing + memory wiring ✅
 - [x] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ✅
-- [ ] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ⬜
+- [x] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ✅
 - [ ] **Phase 5** — wellbeing + career agents ⬜
 - [ ] **Phase 6** — FastAPI SSE endpoints + Next.js frontend (`/web`) ⬜
 - [ ] **Phase 7** — Langfuse tracing + Ragas evals + final docs ⬜

@@ -29,6 +29,8 @@ data/curriculum/*
 data/career/*
 data/profiles/
 !data/**/.gitkeep
+# ...but ship the tiny synthetic sample corpus so RAG works out-of-the-box.
+!data/curriculum/sample_*
 
 # Qdrant (embedded local storage + any docker volume)
 qdrant_data/

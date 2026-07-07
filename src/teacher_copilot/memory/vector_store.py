@@ -128,6 +128,24 @@ class VectorStore:
             for point in response.points
         ]
 
+    async def delete_points(self, collection: str, *, filters: dict[str, Any]) -> None:
+        """Delete all points in ``collection`` matching ``filters`` (equality).
+
+        Used for idempotent ingestion: delete a source file's existing chunks before
+        re-upserting them, so re-running never leaves stale/duplicate chunks behind.
+        """
+        selector = _to_filter(filters)
+        if selector is None:
+            return
+        await self._run(
+            self._client.delete, collection_name=collection, points_selector=selector
+        )
+
+    async def count(self, collection: str) -> int:
+        """Return the number of points in ``collection``."""
+        result = await self._run(self._client.count, collection_name=collection, exact=True)
+        return int(result.count)
+
     async def delete_collection(self, name: str) -> None:
         """Delete collection ``name`` (no error if absent)."""
         await self._run(self._client.delete_collection, name)
