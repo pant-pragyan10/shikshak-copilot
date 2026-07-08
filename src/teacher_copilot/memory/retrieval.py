@@ -182,5 +182,13 @@ def _merge_and_rank(query: str, hits: list[SearchHit], limit: int) -> list[Retri
 
 @lru_cache(maxsize=1)
 def get_retriever() -> Retriever:
-    """Return the process-wide :class:`Retriever` (shared embedder + vector store)."""
+    """Return the process-wide curriculum :class:`Retriever`."""
     return Retriever(get_embedder(), get_vector_store())
+
+
+@lru_cache(maxsize=1)
+def get_career_retriever() -> Retriever:
+    """Return the process-wide career-paths :class:`Retriever` (same infra, other collection)."""
+    return Retriever(
+        get_embedder(), get_vector_store(), collection=get_settings().career_collection
+    )

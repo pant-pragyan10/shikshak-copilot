@@ -103,11 +103,11 @@ class _EmptyRetriever:
 @pytest.mark.parametrize(
     ("intent", "expected_agent", "expected_type"),
     [
-        # grading (Phase 3) and lesson_plan (Phase 4) are live; the rest are stubs.
+        # All four specialists are live as of Phase 5; general is the inline path.
         ("grading", "grading", "grading"),
         ("lesson_plan", "lesson_plan", "lesson_plan"),
-        ("wellbeing", "wellbeing", "not_implemented"),
-        ("career", "career", "not_implemented"),
+        ("wellbeing", "wellbeing", "wellbeing"),
+        ("career", "career", "career"),
         ("general", "general", "general"),
     ],
 )
@@ -119,6 +119,7 @@ async def test_graph_routes_each_intent(
         router=router,
         profile_store=ProfileStore(base_path=str(tmp_path)),
         retriever=_EmptyRetriever(),  # type: ignore[arg-type]
+        career_retriever=_EmptyRetriever(),  # type: ignore[arg-type]
     )
 
     state = await run_turn(graph, "t1", "some teacher message")
@@ -128,17 +129,6 @@ async def test_graph_routes_each_intent(
     assert state.agent_output["type"] == expected_type
     # every path appends an assistant reply
     assert state.messages[-1].role == "assistant"
-
-
-async def test_stub_agent_produces_graceful_output(tmp_path: object) -> None:
-    # wellbeing is still a stub (Phase 5); its node returns a graceful message.
-    router = FakeRouter(intent="wellbeing", confidence=0.99)
-    graph = build_graph(router=router, profile_store=ProfileStore(base_path=str(tmp_path)))
-    state = await run_turn(graph, "t1", "I'm exhausted after invigilation duty")
-    assert state.agent_output is not None
-    assert state.agent_output["agent"] == "wellbeing"
-    assert state.agent_output["phase"] == 5
-    assert "isn't available yet" in state.messages[-1].content
 
 
 async def test_general_path_returns_text(tmp_path: object) -> None:

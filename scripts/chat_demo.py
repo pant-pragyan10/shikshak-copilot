@@ -15,12 +15,33 @@ Type 'exit' or Ctrl-D to quit.
 from __future__ import annotations
 
 import asyncio
+from datetime import date, timedelta
 
-from teacher_copilot.memory.profile import Board, TeacherProfile, get_profile_store
+from teacher_copilot.memory.profile import (
+    Board,
+    TeacherProfile,
+    WorkloadEntry,
+    get_profile_store,
+)
 from teacher_copilot.orchestrator.graph import build_graph, run_turn
 from teacher_copilot.orchestrator.state import CopilotState
 
 DEMO_TEACHER_ID = "demo-teacher"
+
+
+def _demo_workload() -> list[WorkloadEntry]:
+    # A tiring recent week, so the wellbeing agent has real patterns to reflect on.
+    today = date(2026, 7, 6)
+    loads = [(30, 6, 2), (12, 6, 2), (0, 5, 3), (18, 6, 2), (5, 5, 3)]
+    return [
+        WorkloadEntry(
+            entry_date=today - timedelta(days=i),
+            papers_graded=papers,
+            classes_taken=classes,
+            self_reported_energy=energy,
+        )
+        for i, (papers, classes, energy) in enumerate(loads)
+    ]
 
 
 async def _ensure_demo_profile() -> None:
@@ -34,6 +55,7 @@ async def _ensure_demo_profile() -> None:
                 grades_taught=["8", "9"],
                 board=Board.CBSE,
                 years_experience=6,
+                workload_log=_demo_workload(),
             )
         )
 

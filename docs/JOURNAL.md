@@ -239,9 +239,59 @@ a generic plan, but one grounded in *this* curriculum.
 
 ---
 
+## Phase 5 — wellbeing and career (all four agents live)
+
+The last two specialists. With these in, every intent the router can produce now
+lands on a real agent — the graph is feature-complete.
+
+### Wellbeing — the one I was most careful with
+
+This is the component I'm most wary of in the whole product, and I wanted the code to
+show that wariness rather than hide it. A teacher's mental health is real, and a chirpy
+chatbot pretending to be a wellbeing coach is at best useless and at worst harmful. So
+the module docstring leads with a blunt "what this deliberately is NOT" — not therapy,
+not diagnosis, not an assessment — because being explicit about the boundary *is* the
+engineering, not a disclaimer bolted on afterwards.
+
+Two decisions carry the safety:
+
+- **Crisis screen runs before anything else.** If the message contains a serious-
+  distress or self-harm signal, the agent does not analyse workload, does not try to
+  cheer anyone up, does not problem-solve. It says something brief and warm, hands off
+  to real helplines, and gets out of the way. The keyword list is intentionally
+  high-recall — I would much rather over-trigger a gentle "please talk to someone" than
+  miss a real one. The helpline numbers live in config with a loud TODO to verify them,
+  because shipping a wrong crisis number would be its own kind of harm.
+- **The numbers are computed in Python, never by the model.** "Average energy 2/5 over
+  five days, five days straight of 5+ classes" — those are real counts over the
+  teacher's own logs. The LLM only gets to phrase the warmth and suggest non-medical,
+  practical things (rest, a boundary, leaning on a colleague). I don't want it inventing
+  a statistic about someone's wellbeing. A "this isn't medical advice" disclaimer is
+  always present, on every path including the fallback.
+
+The tone I aimed for is a caring colleague, not a therapist and not a motivational
+poster. No toxic positivity. Teaching here is genuinely hard, and it should say so.
+
+### Career — grounded, and honest about tradeoffs
+
+Same trust rule as the lesson planner, different domain. An LLM asked about career
+changes will happily invent job titles and confident salary figures. So the career
+agent recommends only from a small curated dataset (retrieved with the same hybrid
+Retriever, just a different collection), and if the model names a path that isn't in
+the dataset, that recommendation simply doesn't get a citation. No salary numbers, no
+guarantees — and `honest_caveats` ("transitions take time; may mean a pay change") are
+always attached, even if the model forgets them. Career advice that only lists upside
+is how people get burned; the caveats are non-negotiable.
+
+Smoke tested all three paths end to end: a tired-week reflection with the real numbers
+in it, a distress message that triggered the gentle handoff with helplines and no
+analysis, and grounded career guidance citing actual dataset paths for a Science/Maths
+teacher.
+
+---
+
 ## What's next
 
-- **Phase 5** — the well-being and career agents.
 - **Phase 6** — FastAPI streaming endpoints and a frontend.
 - **Phase 7** — tracing, evals, and polishing the docs.
 

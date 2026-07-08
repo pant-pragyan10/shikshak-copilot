@@ -1,0 +1,85 @@
+{
+  "disclaimer": "ILLUSTRATIVE / SYNTHETIC. These career paths are hand-written for the Teacher Copilot demo to be realistic for the Indian context. They are NOT scraped job-market data and contain no salary figures or guarantees. Verify specifics before relying on them.",
+  "paths": [
+    {
+      "title": "EdTech Content Developer",
+      "description": "Create lessons, question banks, explainer scripts and learning material for edtech platforms and apps.",
+      "typical_transition_from": ["subject teacher (any board)", "coaching-class faculty"],
+      "skills_to_build": ["clear digital writing", "familiarity with a platform's style guide", "basic media/video scripting", "understanding of learning objectives"],
+      "indian_context_notes": "Edtech content roles strongly value NCERT/CBSE familiarity and the ability to write for both English and regional-language learners. A small portfolio of sample lessons matters more than a certificate.",
+      "example_next_steps": ["make 3-4 polished sample lessons in your subject", "learn a content tool (Google Docs style guides, basic Canva)", "apply to content teams at edtech companies and freelance marketplaces"]
+    },
+    {
+      "title": "Instructional Designer",
+      "description": "Design how courses are structured and sequenced so learners actually learn — objectives, activities, assessments, and flow.",
+      "typical_transition_from": ["experienced classroom teacher", "teacher trainer"],
+      "skills_to_build": ["backward design / learning outcomes", "an ID framework (e.g. ADDIE)", "an authoring tool (Articulate, H5P, or similar)", "storyboarding"],
+      "indian_context_notes": "Growing demand from edtech firms, corporate L&D, and universities going online. Teaching experience is a real asset because you understand how students struggle.",
+      "example_next_steps": ["take a free/low-cost ID course", "redesign one of your own units using backward design", "build a portfolio storyboard and one interactive module"]
+    },
+    {
+      "title": "Curriculum Developer",
+      "description": "Plan and write curriculum, scope-and-sequence documents, and teacher guides for schools, boards, or publishers.",
+      "typical_transition_from": ["senior teacher", "academic coordinator"],
+      "skills_to_build": ["curriculum mapping", "alignment to board frameworks", "clear teacher-facing writing", "reviewing for age-appropriateness"],
+      "indian_context_notes": "Publishers and school chains hire for this; deep knowledge of a specific board's framework (CBSE/ICSE/state) and NEP 2020 directions is valued.",
+      "example_next_steps": ["study your board's framework end-to-end", "draft a sample scope-and-sequence for one grade", "reach out to educational publishers and school groups"]
+    },
+    {
+      "title": "Corporate L&D / Trainer",
+      "description": "Train adult employees in companies — onboarding, soft skills, communication, and domain topics.",
+      "typical_transition_from": ["teacher comfortable with public speaking", "communication/English teacher"],
+      "skills_to_build": ["adult-learning principles", "facilitation and workshop design", "slide and workshop craft", "measuring training impact"],
+      "indian_context_notes": "IT/BPO/BFSI sectors hire trainers heavily. Communication and soft-skills training is a common first entry point for teachers.",
+      "example_next_steps": ["run a couple of free workshops to build a reel/testimonials", "learn a facilitation framework", "apply to L&D teams and training vendors"]
+    },
+    {
+      "title": "Test-Prep / Coaching Educator",
+      "description": "Teach competitive-exam or board-exam prep (JEE/NEET/UPSC foundations, boards) at coaching institutes or online.",
+      "typical_transition_from": ["subject teacher with strong exam results", "tutor"],
+      "skills_to_build": ["deep exam-pattern mastery", "fast problem-solving explanations", "online teaching setup", "student outcome tracking"],
+      "indian_context_notes": "A large, established market. Track record (student results) is the currency. Online coaching has widened where you can teach from.",
+      "example_next_steps": ["specialise in one exam and one subject", "record a few sample problem walkthroughs", "join an established institute or build an online batch"]
+    },
+    {
+      "title": "Educational Content Creator",
+      "description": "Build your own teaching brand via YouTube, short videos, or self-published courses.",
+      "typical_transition_from": ["confident, camera-comfortable teacher"],
+      "skills_to_build": ["scripting and pacing for video", "basic editing", "audience/SEO basics", "consistency"],
+      "indian_context_notes": "Regional-language explainer content has huge underserved demand. Income is uneven and builds slowly — usually a side path before it's a main one.",
+      "example_next_steps": ["publish 10 short explainers on one topic", "learn basic editing", "engage with your comments to build a small audience"]
+    },
+    {
+      "title": "Academic Coordinator / School Leadership",
+      "description": "Move into leading a subject department, coordinating academics, or eventually school administration.",
+      "typical_transition_from": ["senior teacher trusted by peers"],
+      "skills_to_build": ["mentoring other teachers", "timetabling and academic planning", "data-informed review", "stakeholder communication"],
+      "indian_context_notes": "A natural in-school growth path. Some schools value a B.Ed./M.Ed. or leadership certification for formal promotion.",
+      "example_next_steps": ["volunteer to coordinate a school initiative", "mentor a junior teacher", "discuss a coordinator track with your principal"]
+    },
+    {
+      "title": "Assessment / Item Writer",
+      "description": "Write high-quality exam questions, rubrics, and assessments for boards, edtech, and test-prep companies.",
+      "typical_transition_from": ["teacher who enjoys setting and marking papers"],
+      "skills_to_build": ["item-writing rigour (validity, difficulty calibration)", "rubric design", "avoiding bias/ambiguity", "blueprint alignment"],
+      "indian_context_notes": "Edtech and assessment firms need reliable item writers, often freelance to start. Familiarity with board marking schemes helps.",
+      "example_next_steps": ["write a calibrated question set with rubrics for one unit", "study a released board marking scheme closely", "apply to assessment teams for freelance trials"]
+    },
+    {
+      "title": "Teacher Trainer / Teacher Educator",
+      "description": "Train and coach other teachers — pedagogy workshops, in-service training, and B.Ed. teaching.",
+      "typical_transition_from": ["experienced teacher with strong classroom craft"],
+      "skills_to_build": ["adult facilitation", "modelling and observation feedback", "workshop design", "current pedagogy (e.g. NEP directions)"],
+      "indian_context_notes": "NGOs, government programmes, school chains, and B.Ed. colleges all hire teacher trainers. Field credibility from real classroom years matters a lot.",
+      "example_next_steps": ["design and run one teacher workshop", "learn to give observation feedback", "connect with education NGOs and training programmes"]
+    },
+    {
+      "title": "EdTech Academic Specialist / Product",
+      "description": "Bridge teaching and product teams at an edtech company — advising on pedagogy, reviewing content, and shaping learning features.",
+      "typical_transition_from": ["teacher curious about product/tech", "content developer wanting more scope"],
+      "skills_to_build": ["translating pedagogy for engineers/designers", "reading basic product metrics", "content QA at scale", "cross-team communication"],
+      "indian_context_notes": "These roles reward teachers who can speak both 'classroom' and 'product'. Often reachable after a stint in edtech content or ID.",
+      "example_next_steps": ["get in via a content/ID role first", "learn how product teams work", "volunteer for pedagogy reviews of features"]
+    }
+  ]
+}

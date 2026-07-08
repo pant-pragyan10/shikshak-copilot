@@ -13,8 +13,21 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class WellbeingResource(BaseModel):
+    """A support resource surfaced by the wellbeing agent's distress handoff.
+
+    NOTE: this is config-driven precisely so the numbers can be verified/updated
+    without touching code. See the TODO on ``Settings.wellbeing_resources``.
+    """
+
+    name: str
+    contact: str
+    description: str
+    region: str = "IN"
 
 
 class Env(StrEnum):
@@ -109,6 +122,35 @@ class Settings(BaseSettings):
     )
     curriculum_collection: str = Field(
         default="curriculum", description="Qdrant collection holding curriculum chunks."
+    )
+
+    # --- Career guidance (RAG) ---
+    career_paths_path: str = Field(
+        default="./data/career/career_paths.json", description="Curated career-paths dataset."
+    )
+    career_collection: str = Field(
+        default="career_paths", description="Qdrant collection holding career paths."
+    )
+
+    # --- Wellbeing support resources ---
+    # !!! VERIFY BEFORE ANY REAL USE !!!
+    # These are placeholder India mental-health helplines. Numbers and names change;
+    # a developer MUST confirm the current, correct details (and add region-appropriate
+    # options) before this is shown to a real teacher. Override via env if needed.
+    wellbeing_resources: list[WellbeingResource] = Field(
+        default_factory=lambda: [
+            WellbeingResource(
+                name="Tele-MANAS (Government of India mental health support)",
+                contact="14416 or 1-800-891-4416",
+                description="Free national tele-mental-health helpline (verify current number).",
+            ),
+            WellbeingResource(
+                name="iCall (TISS) psychosocial helpline",
+                contact="9152987821",
+                description="Counsellor-staffed psychosocial support line (verify current number).",
+            ),
+        ],
+        description="Support resources for the distress handoff (verify details before use).",
     )
 
     # --- Profile store ---

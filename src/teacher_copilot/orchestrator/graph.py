@@ -10,9 +10,10 @@ LangGraph merges. We keep ``CopilotState`` as the domain object and never let gr
 concerns leak into it — the only adaptation is that ``ainvoke`` returns a plain dict,
 which :func:`run_turn` revalidates back into a ``CopilotState``.
 
-Grading is live (Phase 3). The other specialists (lesson_plan/wellbeing/career) are
-still Phase 0 stubs that raise ``NotImplementedError``; their nodes catch that and
-emit a graceful ``not_implemented`` output, so the graph always runs end-to-end.
+All four specialists (grading, lesson_plan, wellbeing, career) plus the general path
+are live as of Phase 5 — the graph is feature-complete. The agent nodes still catch
+``NotImplementedError`` defensively and emit a graceful ``not_implemented`` output, so
+the graph keeps running even if a future agent regresses to a stub.
 """
 
 from __future__ import annotations
@@ -140,6 +141,7 @@ def build_graph(
     router: ProviderRouter | None = None,
     profile_store: ProfileStore | None = None,
     retriever: Retriever | None = None,
+    career_retriever: Retriever | None = None,
 ) -> Any:
     """Build and compile the orchestrator LangGraph.
 
@@ -147,6 +149,7 @@ def build_graph(
         router: Provider router for LLM calls (defaults to the process-wide router).
         profile_store: Teacher profile store (defaults to the process-wide store).
         retriever: Curriculum retriever for lesson planning (defaults to the shared one).
+        career_retriever: Career-paths retriever (defaults to the shared career one).
 
     Returns:
         A compiled LangGraph runnable over :class:`CopilotState`.
@@ -154,13 +157,13 @@ def build_graph(
     router = router or get_router()
     profile_store = profile_store or get_profile_store()
 
-    # Grading (Phase 3) and lesson planning (Phase 4) are live and share the graph's
-    # router. Wellbeing/career are still stubs whose nodes emit a graceful reply.
+    # All four specialist agents are live now (Phase 5) — the graph is feature-complete.
+    # Each shares the graph's router; RAG agents take their retrievers.
     agents: list[BaseAgent] = [
         GradingAgent(router=router),
         LessonPlanAgent(router=router, retriever=retriever),
-        WellbeingAgent(),
-        CareerAgent(),
+        WellbeingAgent(router=router, profile_store=profile_store),
+        CareerAgent(router=router, retriever=career_retriever),
     ]
 
     graph: StateGraph = StateGraph(CopilotState)

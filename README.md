@@ -207,6 +207,56 @@ python scripts/chat_demo.py             # then ask for a lesson plan → grounde
 
 A tiny synthetic sample corpus ships in `data/curriculum/` so RAG works out of the box.
 
+## Wellbeing agent — what it deliberately does NOT do
+
+This is the highest-risk component in the product, so the boundaries come first:
+
+- It is **NOT** therapy, counselling, diagnosis, or a mental-health assessment. It
+  never diagnoses, never uses clinical language, never scores a person's mental
+  state, and never implies it can treat anything.
+- It **is** a workload-awareness and supportive-reflection tool — a caring colleague,
+  not a therapist and not a cheerleader (no toxic positivity). It validates that
+  teaching in India is genuinely demanding.
+
+Two design choices enforce this:
+
+- **Crisis pre-filter runs first.** A deliberately high-recall keyword screen checks
+  the message for serious-distress / self-harm signals *before* any analysis. On a
+  hit, the agent does **not** analyse or problem-solve — it responds briefly and
+  warmly and hands off to real, region-appropriate professional resources
+  (config-driven `WELLBEING_RESOURCES`, with a TODO to verify current India helpline
+  details before real use). It never claims confidentiality, never promises outcomes,
+  and always encourages reaching out to trusted people and professionals.
+- **The numbers come from Python, not the LLM.** Pattern signals (avg energy over the
+  last N days, consecutive high-load days, papers this week) are computed in plain
+  Python from the teacher's own `WorkloadEntry` logs — so a claim like "energy 2/5
+  across 5 days" is *real*, never hallucinated. The LLM only phrases warmth and
+  practical, non-medical suggestions around those computed facts. A disclaimer stating
+  this isn't medical advice is **always** present.
+
+`tone_flag` is one of `routine` / `elevated_workload` / `distress_handoff`.
+
+## Career agent
+
+Grounded, honest guidance on career growth and pivots for Indian teachers — edtech
+content, instructional design, curriculum development, L&D/corporate training,
+test-prep, content creation, school leadership, assessment, teacher training.
+
+- **Grounded in a curated dataset**, not motivational fluff and not invented job
+  titles. A small, clearly-synthetic-but-realistic dataset (`data/career/career_paths.json`)
+  is embedded into a `career_paths` Qdrant collection and retrieved with the same
+  hybrid `Retriever` the lesson planner uses.
+- **Realism guardrails**: recommend only from retrieved paths (invented titles never
+  get a dataset citation), **no salary figures, no guaranteed outcomes** — framed as
+  options and directions with real tradeoffs. `honest_caveats` are *always* attached,
+  so nothing reads as a promise.
+- **Grounding flag** like the lesson planner: `grounded` when the dataset matched,
+  else clearly-labelled `general` guidance with a disclaimer.
+
+```bash
+python scripts/ingest_career.py     # embed + index the career dataset into Qdrant
+```
+
 ## Phase status
 
 - [x] **Phase 0** — repo scaffold, config, shared state, base classes, `/health` ✅
@@ -214,6 +264,6 @@ A tiny synthetic sample corpus ships in `data/curriculum/` so RAG works out of t
 - [x] **Phase 2** — LangGraph orchestrator + intent routing + memory wiring ✅
 - [x] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ✅
 - [x] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ✅
-- [ ] **Phase 5** — wellbeing + career agents ⬜
+- [x] **Phase 5** — wellbeing + career agents ✅ — **all four specialist agents now live**
 - [ ] **Phase 6** — FastAPI SSE endpoints + Next.js frontend (`/web`) ⬜
 - [ ] **Phase 7** — Langfuse tracing + Ragas evals + final docs ⬜
