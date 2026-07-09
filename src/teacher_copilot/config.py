@@ -53,6 +53,10 @@ class Settings(BaseSettings):
 
     # --- Runtime ---
     env: Env = Field(default=Env.DEV, description="Deployment environment.")
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        description="Allowed CORS origins (the frontend). Override via CORS_ORIGINS (JSON list).",
+    )
 
     # --- LLM providers (optional at boot) ---
     groq_api_key: str | None = Field(default=None, description="Groq free-tier API key.")

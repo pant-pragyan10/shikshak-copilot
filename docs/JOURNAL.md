@@ -290,9 +290,53 @@ teacher.
 
 ---
 
+## Phase 6A — the API
+
+No new brains this phase, just a front door. FastAPI over the orchestrator: a factory
+that builds the router, agents, graph, and a session store once, and exposes them as
+REST plus an SSE chat endpoint. Split it from the frontend (6B) on purpose — a clean,
+documented, deployable API is worth having on its own, and `/docs` makes it demoable
+without any UI at all.
+
+A few things I was deliberate about:
+
+- **Don't fake streaming I don't have.** The router only has `complete()`, so there
+  are no real per-token deltas yet. I could have chunked the final string to *look*
+  like streaming, but that's a lie the frontend would build on. Instead the SSE
+  protocol emits honest typed events — `intent`, then the full `message`, then the
+  structured `agent_output`, then `done` — and reserves an `event: token` slot so real
+  streaming drops in later without changing the wire format. The docstring says this
+  out loud.
+- **Structured output is a first-class event.** The whole point of the agents is that
+  they return real objects — a GradedResult, a LessonPlan with citations. So the stream
+  carries `agent_output` as its own event, and the frontend can render a proper card
+  instead of parsing prose. The text reply is for chat; the structured payload is for
+  the tool UI.
+- **Startup stays fast; shutdown is clean.** The embedder is ~2GB, so it must NOT load
+  at boot — it loads lazily on the first RAG call, and I confirmed that in the smoke
+  (the weights load *during* the first lesson-plan request, not at startup). On
+  shutdown the lifespan finally closes the embedded Qdrant store, which kills the
+  cross-thread `__del__` warning that's been rattling around since Phase 2 — grep for
+  it in the shutdown logs now and it's gone.
+- **Errors never leak.** One envelope shape everywhere, `{"error": {"type", "message"}}`.
+  Free-tier exhaustion becomes a friendly 503 ("we run on free-tier limits, try again");
+  an unhandled error is a generic 500 with the internals kept in the server log, not the
+  response. There's a test that raises `secret_api_key=...` and asserts it never appears
+  in the body.
+- **The agents are almost too defensive to fail.** Amusing side effect: because every
+  agent already degrades gracefully on provider errors, it's genuinely hard to make an
+  endpoint 503 through the normal path — the exhaustion 503 test hits the handler
+  directly rather than fighting the agents' fallbacks. Good problem to have.
+
+The schemas in `api/schemas.py` are the contract the frontend will mirror in
+TypeScript, so I kept them explicit and reused the domain models wherever the wire
+shape already matched.
+
+---
+
 ## What's next
 
-- **Phase 6** — FastAPI streaming endpoints and a frontend.
+- **Phase 6B** — the Next.js frontend that consumes this API.
 - **Phase 7** — tracing, evals, and polishing the docs.
 
 Running list of principles I keep coming back to: keep the free-tier constraint

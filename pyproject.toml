@@ -11,6 +11,7 @@ license = { text = "MIT" }
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "langgraph>=0.2",
@@ -85,3 +86,8 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "W"]
+
+# FastAPI's dependency-injection markers are meant to be called in argument defaults;
+# that's the framework's idiom, not the B008 mutable-default footgun.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Path"]

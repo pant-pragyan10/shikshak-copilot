@@ -257,6 +257,56 @@ test-prep, content creation, school leadership, assessment, teacher training.
 python scripts/ingest_career.py     # embed + index the career dataset into Qdrant
 ```
 
+## API (Phase 6A)
+
+A FastAPI app exposes the orchestrator over HTTP. Startup is fast — the ~2GB embedder
+loads lazily on the first RAG call, and the lifespan closes the embedded Qdrant store
+cleanly on shutdown. Interactive docs at `/docs`.
+
+```bash
+./scripts/run_api.sh            # http://localhost:8000  (docs at /docs)
+```
+
+| Method & path | Purpose |
+|---|---|
+| `GET /health` | Liveness + per-provider health + version |
+| `POST /chat/stream` | Primary endpoint — run a turn, stream typed SSE events |
+| `POST /chat` | Non-streaming JSON fallback (same input) |
+| `POST /grade` | Grade a typed answer → `GradedResult` |
+| `POST /grade/batch` | Grade many answers (bounded concurrency) → results/errors |
+| `POST /grade/image` | Multipart image upload → multimodal grade ("scan a sheet") |
+| `GET /profile/{id}` · `PUT /profile/{id}` | Load / upsert a teacher profile |
+| `POST /profile/{id}/workload` | Append a `WorkloadEntry` (feeds wellbeing) |
+| `POST /lesson-plan` · `POST /career` | Direct structured tool endpoints (reuse the agents) |
+
+**SSE event protocol** (`/chat/stream`, `text/event-stream`):
+
+```
+event: intent        data: {"intent": "lesson_plan"}
+event: message       data: {"text": "...", "active_agent": "lesson_plan"}
+event: agent_output  data: {...GradedResult | LessonPlan | WellbeingReflection | CareerGuidance...}
+event: done          data: {"session_id": "..."}
+event: error         data: {"message": "friendly text"}      # on failure
+```
+
+Honest note: the Phase 1 router only has `complete()` (no token streaming), so today
+the turn is computed via `run_turn` and these events are emitted in order — we do
+**not** fake per-token deltas. The wire format already reserves an `event: token` for
+real streaming, so it drops in later without changing the contract or the frontend
+parser. Errors return a consistent envelope `{"error": {"type", "message"}}`; free-tier
+exhaustion becomes a friendly `503`.
+
+```bash
+# Stream a lesson plan (grounded + cited) as SSE:
+curl -N -X POST localhost:8000/chat/stream -H 'Content-Type: application/json' \
+  -d '{"teacher_id":"t1","message":"Plan a 40-min class 8 science lesson on reflection of light"}'
+
+# Grade a scanned answer sheet over HTTP:
+curl -X POST localhost:8000/grade/image \
+  -F 'file=@answer.jpg' -F 'question=State Newton'\''s second law' \
+  -F 'teacher_id=t1'
+```
+
 ## Phase status
 
 - [x] **Phase 0** — repo scaffold, config, shared state, base classes, `/health` ✅
@@ -265,5 +315,6 @@ python scripts/ingest_career.py     # embed + index the career dataset into Qdra
 - [x] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ✅
 - [x] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ✅
 - [x] **Phase 5** — wellbeing + career agents ✅ — **all four specialist agents now live**
-- [ ] **Phase 6** — FastAPI SSE endpoints + Next.js frontend (`/web`) ⬜
+- [x] **Phase 6A** — FastAPI backend: REST + SSE over the orchestrator ✅
+- [ ] **Phase 6B** — Next.js frontend (`/web`) ⬜
 - [ ] **Phase 7** — Langfuse tracing + Ragas evals + final docs ⬜
