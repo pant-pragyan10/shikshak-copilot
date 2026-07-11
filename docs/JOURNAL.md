@@ -334,9 +334,56 @@ shape already matched.
 
 ---
 
+## Phase 6B — the frontend
+
+Finally the part you can actually click. A Next.js app (App Router, React 19, Tailwind
+v4) in `web/`, consuming the API from 6A. This is the piece a person sees first, so I
+spent the design budget on making it feel like a real product rather than a chatbot
+template.
+
+Decisions I cared about:
+
+- **A real identity, not default-blue-on-white.** A warm-paper background, a teal
+  primary, a serif display face (Fraunces) for the wordmark and hero paired with Inter
+  for the UI, and a proper dark mode. An owned SVG logo mark. The goal was "an
+  education tool a teacher would trust," and generic Tailwind blue doesn't say that.
+- **Structured output is the whole point, so it renders as cards, not text.** The
+  backend already returns real objects — a GradedResult, a LessonPlan with citations —
+  and the SSE stream carries an `agent_output` event. The frontend renders each as a
+  rich card: a score ring and per-criterion bars for grading, a printable timeline with
+  the curriculum sources shown for lesson plans, a respectful reflection for wellbeing.
+  Parsing prose would have thrown that away.
+- **The routing is visible.** When you chat, the moment the `intent` event arrives a
+  little "routed to → Grading" badge appears in the side panel. It makes the multi-agent
+  architecture legible instead of hidden — you can see it deciding.
+- **Grade and the other tools are explicit pages, not just chat.** Phase 3 taught me
+  that phrasing-based routing is fragile ("Question: … Answer: …" reads as a physics
+  question, not a grading request). So each capability also has a structured page —
+  Grade has a form, an image drop for scanned sheets, and a rubric builder — that hits
+  the direct endpoint. Chat is the magic; the tool pages are the reliable path.
+- **Wellbeing got handled with care in the UI too.** The distress handoff renders
+  distinctly and calmly, with the helpline resources foregrounded and the "not a
+  medical tool" disclaimer always visible — never buried under analysis. The tone of a
+  screen matters as much as the tone of the words.
+- **Honest about what streams.** The SSE reader mirrors the backend protocol exactly,
+  including that today it's whole-message, not per-token. When real token streaming
+  lands on the backend, the same events just arrive incrementally — the UI doesn't change.
+
+I didn't touch the backend (it stayed green). One small React-19 wrinkle: its new lint
+rules dislike `setState` in effects, which fought the standard SSR mount-guards — I
+reworked the theme toggle to be CSS-driven and lifted the profile form into a keyed
+child so its state initialises once, rather than papering over it with disables.
+
+Deploy target is a clean monorepo split: frontend on Vercel, backend on Render/Railway
+via a Dockerfile the host builds remotely (no Docker needed locally). The honest
+caveat, documented loudly: local embeddings mean a ~2GB model download on the first RAG
+request of a fresh host — great for privacy, rough for a free-tier cold start, so
+there's a lighter-model switch for demos.
+
+---
+
 ## What's next
 
-- **Phase 6B** — the Next.js frontend that consumes this API.
 - **Phase 7** — tracing, evals, and polishing the docs.
 
 Running list of principles I keep coming back to: keep the free-tier constraint

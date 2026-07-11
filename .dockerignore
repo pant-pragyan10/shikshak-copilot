@@ -1,0 +1,12 @@
+.venv/
+web/
+qdrant_data/
+data/profiles/
+**/__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+.git/
+tests/
+docs/

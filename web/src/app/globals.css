@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (next-themes sets .dark on <html>). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. `@theme inline` maps Tailwind utilities (bg-primary, text-muted-…)
+ * onto runtime CSS variables, so the .dark overrides below actually switch themes
+ * instead of being baked in at build time.
+ */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  --radius-lg: 0.9rem;
+  --radius-md: 0.6rem;
+  --radius-sm: 0.4rem;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+}
+
+:root {
+  --background: #faf9f7;
+  --foreground: #1a1c1e;
+  --card: #ffffff;
+  --card-foreground: #1a1c1e;
+  --muted: #f2f0ec;
+  --muted-foreground: #6f6f6c;
+  --border: #e7e3dd;
+  --input: #e7e3dd;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --accent: #eef4f2;
+  --accent-foreground: #0f766e;
+  --ring: #0f766e;
+  --success: #15803d;
+  --success-foreground: #ffffff;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --danger: #b91c1c;
+  --danger-foreground: #ffffff;
+}
+
+.dark {
+  --background: #0d0f11;
+  --foreground: #e9e7e3;
+  --card: #15181b;
+  --card-foreground: #e9e7e3;
+  --muted: #1b1f23;
+  --muted-foreground: #9a9a95;
+  --border: #272c31;
+  --input: #2b3137;
+  --primary: #2dd4bf;
+  --primary-foreground: #04241f;
+  --accent: #15221f;
+  --accent-foreground: #5eead4;
+  --ring: #2dd4bf;
+  --success: #4ade80;
+  --success-foreground: #04241f;
+  --warning: #fbbf24;
+  --warning-foreground: #241a04;
+  --danger: #f87171;
+  --danger-foreground: #240808;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-primary) 22%, transparent);
+  }
+}
+
+@layer utilities {
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 9999px;
+  }
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.35s ease both;
+}

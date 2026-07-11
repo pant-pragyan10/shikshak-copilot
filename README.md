@@ -1,6 +1,13 @@
 # Teacher Copilot
 
-A multi-agent GenAI copilot for school teachers in India, built on LangGraph.
+A multi-agent GenAI copilot for school teachers in India, built on LangGraph — with a
+FastAPI backend (REST + SSE) and a polished Next.js frontend.
+
+**Live demo:** _add your Vercel URL here_ · **Backend:** _add your Render/Railway URL here_
+
+<!-- Screenshot: drop a screenshot of the Chat screen (with a grounded lesson plan
+     card) at docs/screenshot.png and it renders below. -->
+<!-- ![Teacher Copilot](docs/screenshot.png) -->
 
 An **orchestrator** classifies the teacher's intent and routes to one of four
 specialist agents:
@@ -15,17 +22,53 @@ Shared infra: an **embedded Qdrant** vector store (in-process, no server/Docker)
 (Groq → Gemini → Ollama) that every LLM call flows through. Embeddings run locally
 (BAAI/bge-m3). Zero paid APIs.
 
-## Quickstart
+## Running locally
+
+**Backend** (Python 3.11+, no Docker — Qdrant runs embedded on disk):
 
 ```bash
 uv sync            # or: pip install -e ".[dev]"
 cp .env.example .env                            # add a GROQ/GEMINI key for the LLM path
-uvicorn teacher_copilot.api.main:app --reload   # GET /health -> {"status": "ok"}
-python scripts/chat_demo.py                      # talk to the orchestrator in your terminal
+python scripts/ingest_curriculum.py             # (once) index the sample curriculum for RAG
+python scripts/ingest_career.py                 # (once) index the career dataset
+./scripts/run_api.sh                            # http://localhost:8000  (docs at /docs)
 ```
 
-No Docker required — Qdrant runs embedded on disk (`QDRANT_PATH`). Without provider
-keys the orchestrator still runs, falling back to its keyword intent heuristic.
+**Frontend** (Node 18+; the app is in `web/`):
+
+```bash
+cd web
+npm install
+cp .env.example .env.local                      # NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+npm run dev                                     # http://localhost:3000
+```
+
+Without provider keys the orchestrator still runs (keyword intent heuristic); with a
+`GROQ_API_KEY` the full LLM path works. Terminal-only? `python scripts/chat_demo.py`.
+
+## Frontend
+
+A production-feel Next.js 16 app (App Router, React 19, Tailwind v4) — see
+[`web/`](web/). It streams the orchestrator over SSE (with a live "detected intent"
+badge) and renders each agent's structured output as a rich card: score rings and
+per-criterion bars for grading, a printable timeline with citations for lesson plans,
+a respectful reflection (and a calm, resource-forward distress handoff) for wellbeing,
+and grounded path cards for career. Light/dark themes, keyboard-navigable, responsive.
+
+## Deployment
+
+Monorepo: **frontend → Vercel**, **backend → Render/Railway** (both env-driven).
+
+- **Frontend (Vercel):** import the repo, set **Root Directory = `web`**, set
+  `NEXT_PUBLIC_API_BASE_URL` to the backend URL. See [`web/README.md`](web/README.md).
+- **Backend (Render/Railway):** builds the root [`Dockerfile`](Dockerfile) remotely
+  (Docker isn't needed on your machine). A [`render.yaml`](render.yaml) blueprint is
+  included. Set env vars `GROQ_API_KEY`, `GEMINI_API_KEY`, and `CORS_ORIGINS` (must
+  include your Vercel URL as a JSON list).
+- **Cold-start caveat:** local embeddings mean the ~2GB BGE-M3 model downloads on the
+  first lesson-plan/career request on a fresh host — that request will be slow. On a
+  persistent disk it's a one-time cost; on ephemeral free tiers it recurs per cold
+  start. To shrink it, set `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5` (~130MB, English).
 
 > Building this in the open, phase by phase — see [`docs/JOURNAL.md`](docs/JOURNAL.md)
 > for the reasoning behind each step.
@@ -316,5 +359,5 @@ curl -X POST localhost:8000/grade/image \
 - [x] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ✅
 - [x] **Phase 5** — wellbeing + career agents ✅ — **all four specialist agents now live**
 - [x] **Phase 6A** — FastAPI backend: REST + SSE over the orchestrator ✅
-- [ ] **Phase 6B** — Next.js frontend (`/web`) ⬜
+- [x] **Phase 6B** — Next.js frontend (`web/`) — streaming chat + rich cards, deploy-ready ✅
 - [ ] **Phase 7** — Langfuse tracing + Ragas evals + final docs ⬜

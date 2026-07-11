@@ -1,0 +1,31 @@
+# Render Blueprint for the Teacher Copilot backend.
+# Deploy: push to GitHub, then New > Blueprint on Render and point it at this repo.
+#
+# NOTE ON FREE TIER: Render free web services do NOT get a persistent disk, so the
+# embedded Qdrant index and the ~2GB embedding model re-download on every cold start
+# (the first lesson-plan/career request after a spin-up will be slow). For a stable
+# demo, either use the paid disk below, deploy on Railway with a volume, or set a much
+# smaller embedding model (EMBEDDING_MODEL=BAAI/bge-small-en-v1.5, ~130MB) to cut the
+# cold-start cost. Comment the `disk:` block out if you're on the free plan.
+services:
+  - type: web
+    name: teacher-copilot-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # free plan has no persistent disk; starter enables the disk below
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false # paste in the Render dashboard
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://your-frontend.vercel.app"]' # <-- set to your Vercel URL
+      - key: QDRANT_PATH
+        value: /data/qdrant
+      - key: PROFILE_STORE_PATH
+        value: /data/profiles
+    disk:
+      name: tc-data
+      mountPath: /data
+      sizeGB: 2
