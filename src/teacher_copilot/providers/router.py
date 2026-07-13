@@ -17,6 +17,7 @@ from enum import StrEnum
 from functools import lru_cache
 
 from teacher_copilot.config import Settings, get_settings
+from teacher_copilot.observability.tracing import Tracer, get_tracer
 from teacher_copilot.providers.cache import ResponseCache
 from teacher_copilot.providers.errors import (
     ProviderAuthError,
@@ -109,6 +110,7 @@ class ProviderRouter:
         cache: ResponseCache | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         max_total_wait: float = _MAX_TOTAL_WAIT_SECONDS,
+        tracer: Tracer | None = None,
     ) -> None:
         self._settings = settings
         self._clients: dict[Provider, ProviderClient] = (
@@ -117,6 +119,9 @@ class ProviderRouter:
         self._cache = cache if cache is not None else ResponseCache()
         self._sleep = sleep
         self._max_total_wait = max_total_wait
+        # Tracing is funnelled through observability/; defaults to a no-op unless
+        # Langfuse is configured. The router never hard-depends on Langfuse.
+        self._tracer = tracer if tracer is not None else get_tracer()
         # Providers disabled for the rest of the process after an auth failure — a
         # bad key never fixes itself mid-run, so stop retrying it.
         self._disabled: set[Provider] = set()
@@ -175,68 +180,95 @@ class ProviderRouter:
         effective_task: TaskType = "multimodal" if messages_have_images(messages) else task_type
         chain = ROUTING_TABLE[effective_task]
 
-        cache_key: str | None = None
-        if cacheable:
-            cache_key = self._cache.make_key(
-                messages,
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                json_mode=json_mode,
-            )
-            hit = await self._cache.get(cache_key)
-            if hit is not None:
-                logger.info("cache hit provider=%s model=%s", hit.provider, hit.model)
-                return hit
-            logger.debug("cache miss key=%s", cache_key[:12])
-
-        failures: dict[Provider, str] = {}
-        wait_budget = self._max_total_wait
-
-        for provider, tier in chain:
-            client = self._clients.get(provider)
-            if client is None:
-                failures[provider] = "not configured"
-                continue
-            if provider in self._disabled:
-                failures[provider] = "disabled (auth failure earlier this run)"
-                continue
-
-            # Per-call override wins over the routing table's tier.
-            chosen_model = model if model is not None else self._resolve_model(tier)
-            result, reason, wait_budget = await self._try_provider(
-                client,
-                provider,
-                messages,
-                model=chosen_model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                json_mode=json_mode,
-                wait_budget=wait_budget,
-            )
-            if result is not None:
-                if failures:
-                    logger.info(
-                        "served by %s after fallbacks=%s", provider, list(failures)
+        # One span per LLM call makes the free-tier routing visible: provider chosen,
+        # model/tier, fallbacks taken, cache hit/miss, tokens, latency (see docstring).
+        with self._tracer.span(
+            "llm.complete",
+            kind="generation",
+            metadata={"task_type": effective_task, "cacheable": cacheable},
+        ) as span:
+            cache_key: str | None = None
+            if cacheable:
+                cache_key = self._cache.make_key(
+                    messages,
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    json_mode=json_mode,
+                )
+                hit = await self._cache.get(cache_key)
+                if hit is not None:
+                    logger.info("cache hit provider=%s model=%s", hit.provider, hit.model)
+                    span.update(
+                        model=hit.model,
+                        metadata={"provider": str(hit.provider), "cache": "hit"},
                     )
-                else:
-                    logger.info(
-                        "served by %s model=%s latency_ms=%.0f",
-                        provider,
-                        result.model,
-                        result.latency_ms,
+                    return hit
+                logger.debug("cache miss key=%s", cache_key[:12])
+
+            failures: dict[Provider, str] = {}
+            wait_budget = self._max_total_wait
+
+            for provider, tier in chain:
+                client = self._clients.get(provider)
+                if client is None:
+                    failures[provider] = "not configured"
+                    continue
+                if provider in self._disabled:
+                    failures[provider] = "disabled (auth failure earlier this run)"
+                    continue
+
+                # Per-call override wins over the routing table's tier.
+                chosen_model = model if model is not None else self._resolve_model(tier)
+                result, reason, wait_budget = await self._try_provider(
+                    client,
+                    provider,
+                    messages,
+                    model=chosen_model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    json_mode=json_mode,
+                    wait_budget=wait_budget,
+                )
+                if result is not None:
+                    if failures:
+                        logger.info("served by %s after fallbacks=%s", provider, list(failures))
+                    else:
+                        logger.info(
+                            "served by %s model=%s latency_ms=%.0f",
+                            provider,
+                            result.model,
+                            result.latency_ms,
+                        )
+                    if cache_key is not None:
+                        await self._cache.set(cache_key, result)
+                    span.update(
+                        model=result.model,
+                        output=result.text[:500],
+                        usage={"input": result.input_tokens, "output": result.output_tokens},
+                        metadata={
+                            "provider": str(result.provider),
+                            "cache": "miss" if cacheable else "off",
+                            "latency_ms": round(result.latency_ms, 1),
+                            "fallbacks": [str(p) for p in failures],
+                        },
                     )
-                if cache_key is not None:
-                    await self._cache.set(cache_key, result)
-                return result
+                    return result
 
-            failures[provider] = reason or "unknown error"
-            logger.warning("provider %s failed: %s — falling back", provider, failures[provider])
+                failures[provider] = reason or "unknown error"
+                logger.warning(
+                    "provider %s failed: %s — falling back", provider, failures[provider]
+                )
 
-        raise ProviderExhaustedError(
-            f"All providers exhausted for task_type={effective_task}: {failures}",
-            failures=failures,
-        )
+            span.update(
+                level="ERROR",
+                status_message="all providers exhausted",
+                metadata={"failures": {str(k): v for k, v in failures.items()}},
+            )
+            raise ProviderExhaustedError(
+                f"All providers exhausted for task_type={effective_task}: {failures}",
+                failures=failures,
+            )
 
     async def _try_provider(
         self,

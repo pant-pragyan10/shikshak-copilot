@@ -36,3 +36,8 @@ data/profiles/
 # Qdrant (embedded local storage + any docker volume)
 qdrant_data/
 qdrant_storage/
+
+# Eval run outputs (keep only committed sample results + .gitkeep)
+eval/results/*
+!eval/results/sample_*
+!eval/results/.gitkeep

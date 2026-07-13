@@ -31,6 +31,7 @@ from teacher_copilot.agents.lesson_plan import LessonPlanAgent
 from teacher_copilot.agents.wellbeing import WellbeingAgent
 from teacher_copilot.memory.profile import ProfileStore, get_profile_store
 from teacher_copilot.memory.retrieval import Retriever
+from teacher_copilot.observability.tracing import Tracer, get_tracer
 from teacher_copilot.orchestrator.intent import classify_intent
 from teacher_copilot.orchestrator.state import CopilotState, Intent, Message
 from teacher_copilot.providers.errors import ProviderError
@@ -191,14 +192,28 @@ async def run_turn(
     teacher_id: str,
     message: str,
     state: CopilotState | None = None,
+    *,
+    tracer: Tracer | None = None,
 ) -> CopilotState:
     """Run one conversational turn — the single entry point the API will call.
 
     Appends ``message`` as a user turn, invokes the graph, and returns the updated
-    :class:`CopilotState` (revalidated from LangGraph's dict result).
+    :class:`CopilotState` (revalidated from LangGraph's dict result). Wrapped in a
+    top-level trace span; the router's per-call spans nest under it automatically.
     """
+    tracer = tracer if tracer is not None else get_tracer()
     state = state or CopilotState()
     state.messages.append(Message(role="user", content=message))
     state.metadata["teacher_id"] = teacher_id
-    result: dict[str, Any] = await graph.ainvoke(state)
-    return CopilotState.model_validate(result)
+
+    with tracer.span("orchestrator.turn", metadata={"teacher_id": teacher_id}) as span:
+        result: dict[str, Any] = await graph.ainvoke(state)
+        final = CopilotState.model_validate(result)
+        span.update(
+            metadata={
+                "intent": str(final.intent),
+                "active_agent": final.active_agent,
+                "confidence": final.metadata.get("intent_confidence"),
+            }
+        )
+        return final

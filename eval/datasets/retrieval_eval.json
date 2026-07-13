@@ -1,0 +1,109 @@
+{
+  "_note": "Retrieval eval cases grounded in the shipped synthetic sample corpus (data/curriculum/sample_*). Each question should surface the named source file among the top-k retrieved chunks. Synthetic/illustrative — expand with real curriculum for a rigorous eval.",
+  "cases": [
+    {
+      "id": "light_reflection_laws",
+      "question": "What are the two laws of reflection of light?",
+      "expected_source": "sample_cbse_class8_science_light.md",
+      "subject": "Science",
+      "grade": "8",
+      "board": "CBSE"
+    },
+    {
+      "id": "light_regular_diffused",
+      "question": "What is the difference between regular and diffused reflection?",
+      "expected_source": "sample_cbse_class8_science_light.md",
+      "subject": "Science",
+      "grade": "8",
+      "board": "CBSE"
+    },
+    {
+      "id": "light_human_eye",
+      "question": "How does the human eye focus light onto the retina?",
+      "expected_source": "sample_cbse_class8_science_light.md",
+      "subject": "Science",
+      "grade": "8",
+      "board": "CBSE"
+    },
+    {
+      "id": "light_incident_normal",
+      "question": "What is the normal in the context of a ray of light striking a mirror?",
+      "expected_source": "sample_cbse_class8_science_light.md",
+      "subject": "Science",
+      "grade": "8",
+      "board": "CBSE"
+    },
+    {
+      "id": "maths_polynomials_factor",
+      "question": "What is the Factor Theorem for polynomials in one variable?",
+      "expected_source": "sample_cbse_class9_maths_topics.md",
+      "subject": "Mathematics",
+      "grade": "9",
+      "board": "CBSE"
+    },
+    {
+      "id": "maths_number_systems",
+      "question": "How do you rationalise the denominator of an irrational number?",
+      "expected_source": "sample_cbse_class9_maths_topics.md",
+      "subject": "Mathematics",
+      "grade": "9",
+      "board": "CBSE"
+    },
+    {
+      "id": "maths_triangle_congruence",
+      "question": "Which criteria are used to prove two triangles are congruent?",
+      "expected_source": "sample_cbse_class9_maths_topics.md",
+      "subject": "Mathematics",
+      "grade": "9",
+      "board": "CBSE"
+    },
+    {
+      "id": "maths_linear_equations",
+      "question": "Why is the graph of a linear equation in two variables a straight line?",
+      "expected_source": "sample_cbse_class9_maths_topics.md",
+      "subject": "Mathematics",
+      "grade": "9",
+      "board": "CBSE"
+    },
+    {
+      "id": "maths_coordinate_geometry",
+      "question": "How do the sign conventions work across the four quadrants of the Cartesian plane?",
+      "expected_source": "sample_cbse_class9_maths_topics.md",
+      "subject": "Mathematics",
+      "grade": "9",
+      "board": "CBSE"
+    },
+    {
+      "id": "english_paragraph_writing",
+      "question": "What makes a good paragraph with a topic sentence and supporting details?",
+      "expected_source": "sample_icse_class7_english.txt",
+      "subject": "English",
+      "grade": "7",
+      "board": "ICSE"
+    },
+    {
+      "id": "english_reading_comprehension",
+      "question": "How should students guess word meanings from context while reading a passage?",
+      "expected_source": "sample_icse_class7_english.txt",
+      "subject": "English",
+      "grade": "7",
+      "board": "ICSE"
+    },
+    {
+      "id": "english_grammar_tenses",
+      "question": "How should tenses and subject-verb agreement be taught in context?",
+      "expected_source": "sample_icse_class7_english.txt",
+      "subject": "English",
+      "grade": "7",
+      "board": "ICSE"
+    },
+    {
+      "id": "english_speaking_listening",
+      "question": "What speaking and listening activities build confidence in spoken English?",
+      "expected_source": "sample_icse_class7_english.txt",
+      "subject": "English",
+      "grade": "7",
+      "board": "ICSE"
+    }
+  ]
+}

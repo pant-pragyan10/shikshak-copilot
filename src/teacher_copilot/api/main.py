@@ -33,6 +33,7 @@ from teacher_copilot.config import get_settings
 from teacher_copilot.memory.profile import ProfileStore, get_profile_store
 from teacher_copilot.memory.retrieval import Retriever
 from teacher_copilot.memory.vector_store import get_vector_store
+from teacher_copilot.observability.tracing import get_tracer
 from teacher_copilot.orchestrator.graph import build_graph
 from teacher_copilot.providers.router import ProviderRouter, get_router
 
@@ -75,6 +76,8 @@ def create_app(
             settings.env,
         )
         yield
+        # Flush any buffered traces (no-op unless Langfuse is configured).
+        get_tracer().flush()
         # Close the embedded Qdrant store only if it was actually opened (avoids
         # creating one just to close it, and keeps the __del__ GC warning away).
         if get_vector_store.cache_info().currsize:

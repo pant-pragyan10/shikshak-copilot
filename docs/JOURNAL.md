@@ -382,11 +382,57 @@ there's a lighter-model switch for demos.
 
 ---
 
-## What's next
+## Phase 7 — observability, evals, and the docs
 
-- **Phase 7** — tracing, evals, and polishing the docs.
+The last phase, and the one that turns "it works on my machine" into "I can show it
+works." Three things: make the system observable, make its quality measurable, and make
+the README the front door.
 
-Running list of principles I keep coming back to: keep the free-tier constraint
-honest, keep each module single-purpose, and make the expensive/fragile things
-(rate limits, model churn) explicit in the design rather than hoping they don't
-happen.
+**Observability.** Every LLM call already carried the interesting numbers — which
+provider served it, which tier, whether it fell back, cache hit or miss, tokens,
+latency — I'd just been logging them. Phase 7 sends them to Langfuse as spans, so a whole
+turn is a trace with the provider calls nested inside. The discipline I care about most:
+it's funnelled through one `observability/` module, exactly like the provider router.
+Nothing else imports Langfuse, so it stays swappable — and it's a hard no-op when
+unconfigured, wrapped so a tracing error can never break the thing it's tracing. The app
+runs identically with it off; I verified the whole test suite passes unchanged with the
+no-op wired in. The nice side effect: the free-tier routing and fallback behaviour I've
+been designing around for seven phases is now *visible* instead of a black box.
+
+**Evals.** I wanted real numbers, not vibes, and I wanted them honest about their limits.
+Two evals, and I ran both live to commit actual results:
+
+- *Retrieval* — does hybrid search find the right curriculum source? With a known
+  expected source per question, recall@k and MRR are deterministic (no LLM judge, no
+  quota). On the sample corpus it's recall@4 = 1.0, MRR = 1.0 — every question hit its
+  source at rank 1. Clean corpus, so unsurprising; the number to watch as topics overlap.
+- *Grading consistency* — grade the same answer three times, measure the mark swing. Mean
+  swing 0.33 marks, and the off-topic answer refused 3/3 as `needs_review`. That last one
+  is the "never fabricate" rule holding under repetition, which is exactly the claim I
+  wanted to be able to back with a number.
+
+Ragas is wired in as an optional, LLM-judged layer on top, but I made the deterministic
+metrics the real deliverable — they run without spending quota and don't depend on a
+free-tier judge's mood. The eval README is blunt about all of this being directional on
+small synthetic data. Building evaluation in at all, and being honest about its limits,
+felt more valuable than a big impressive-looking number I couldn't defend.
+
+**Docs.** Rewrote the README as an actual portfolio front page — the pitch, the
+architecture and *why* multi-agent, and a punchy "engineering decisions" section that's
+really my own interview cheat-sheet. Kept it scannable. If a recruiter reads one file,
+it's that one, and it should make them want to open the demo.
+
+---
+
+## Wrapping up
+
+Seven phases, built in the open. The throughline I kept returning to: **be honest about
+the hard parts and design for them out loud** — free-tier limits became a routing layer,
+model churn became config-driven tiers, "the LLM might be wrong" became `needs_review`
+and grounding flags and Python-computed wellbeing facts, and "is it actually any good"
+became evals with committed numbers. Each phase shipped something that ran end to end,
+and each one left the next session a clean, typed, tested surface to build on.
+
+What's left is deliberately deferred, not forgotten (see the README roadmap): Hindi/
+Hinglish, voice input, WhatsApp, a student portal, real token streaming, auth. All of it
+designed to extend — which was the point.

@@ -1,0 +1,198 @@
+{
+  "eval": "retrieval",
+  "created_at": "2026-07-07T05:45:04+00:00",
+  "judge": "deterministic",
+  "caveats": "Deterministic recall@k/MRR use a small synthetic corpus with one known source per question. Ragas context metrics (if run) use a free-tier LLM judge, so treat them as directional. Expand with real curriculum for a rigorous eval.",
+  "summary": {
+    "n": 13,
+    "k": 4,
+    "recall_at_k": 1.0,
+    "mrr": 1.0
+  },
+  "details": {
+    "cases": [
+      {
+        "id": "light_reflection_laws",
+        "expected_source": "sample_cbse_class8_science_light.md",
+        "retrieved_sources": [
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class9_maths_topics.md",
+          "sample_icse_class7_english.txt"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.6144
+      },
+      {
+        "id": "light_regular_diffused",
+        "expected_source": "sample_cbse_class8_science_light.md",
+        "retrieved_sources": [
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class9_maths_topics.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.6435
+      },
+      {
+        "id": "light_human_eye",
+        "expected_source": "sample_cbse_class8_science_light.md",
+        "retrieved_sources": [
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class9_maths_topics.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.5659
+      },
+      {
+        "id": "light_incident_normal",
+        "expected_source": "sample_cbse_class8_science_light.md",
+        "retrieved_sources": [
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class9_maths_topics.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.6445
+      },
+      {
+        "id": "maths_polynomials_factor",
+        "expected_source": "sample_cbse_class9_maths_topics.md",
+        "retrieved_sources": [
+          "sample_cbse_class9_maths_topics.md",
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.4924
+      },
+      {
+        "id": "maths_number_systems",
+        "expected_source": "sample_cbse_class9_maths_topics.md",
+        "retrieved_sources": [
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.4814
+      },
+      {
+        "id": "maths_triangle_congruence",
+        "expected_source": "sample_cbse_class9_maths_topics.md",
+        "retrieved_sources": [
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class8_science_light.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.4306
+      },
+      {
+        "id": "maths_linear_equations",
+        "expected_source": "sample_cbse_class9_maths_topics.md",
+        "retrieved_sources": [
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.4568
+      },
+      {
+        "id": "maths_coordinate_geometry",
+        "expected_source": "sample_cbse_class9_maths_topics.md",
+        "retrieved_sources": [
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_icse_class7_english.txt"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.4255
+      },
+      {
+        "id": "english_paragraph_writing",
+        "expected_source": "sample_icse_class7_english.txt",
+        "retrieved_sources": [
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.5246
+      },
+      {
+        "id": "english_reading_comprehension",
+        "expected_source": "sample_icse_class7_english.txt",
+        "retrieved_sources": [
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.6096
+      },
+      {
+        "id": "english_grammar_tenses",
+        "expected_source": "sample_icse_class7_english.txt",
+        "retrieved_sources": [
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class9_maths_topics.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.5773
+      },
+      {
+        "id": "english_speaking_listening",
+        "expected_source": "sample_icse_class7_english.txt",
+        "retrieved_sources": [
+          "sample_icse_class7_english.txt",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class8_science_light.md",
+          "sample_cbse_class9_maths_topics.md"
+        ],
+        "hit": true,
+        "rank": 1,
+        "reciprocal_rank": 1.0,
+        "top_score": 0.5462
+      }
+    ]
+  }
+}

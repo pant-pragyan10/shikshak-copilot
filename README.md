@@ -1,26 +1,130 @@
 # Teacher Copilot
 
-A multi-agent GenAI copilot for school teachers in India, built on LangGraph — with a
-FastAPI backend (REST + SSE) and a polished Next.js frontend.
+**A multi-agent AI assistant for school teachers in India — grade answers (typed or
+scanned), plan curriculum-grounded lessons, reflect on workload, and explore career
+growth.** Built on LangGraph, served over REST + SSE, with a polished Next.js frontend.
+**Zero paid APIs** — free-tier LLMs behind a resilient router, embeddings run locally.
 
-**Live demo:** _add your Vercel URL here_ · **Backend:** _add your Render/Railway URL here_
+<p>
+<img alt="Python 3.12" src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white">
+<img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
+<img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-orchestration-1C3C3C">
+<img alt="Qdrant" src="https://img.shields.io/badge/Qdrant-embedded-DC244C">
+<img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white">
+<img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
+<img alt="mypy strict" src="https://img.shields.io/badge/mypy-strict-2A6DB2">
+<img alt="tests" src="https://img.shields.io/badge/tests-137%20passing-2ea44f">
+</p>
 
-<!-- Screenshot: drop a screenshot of the Chat screen (with a grounded lesson plan
-     card) at docs/screenshot.png and it renders below. -->
+**🔗 Live demo:** _add your Vercel URL_ · **API:** _add your Render/Railway URL_ ·
+**📓 [Build journal](docs/JOURNAL.md)** · **📊 [Evaluation](eval/README.md)**
+
+<!-- Add a screenshot of the Chat screen (with a grounded lesson-plan card) at
+     docs/screenshot.png and uncomment: -->
 <!-- ![Teacher Copilot](docs/screenshot.png) -->
 
-An **orchestrator** classifies the teacher's intent and routes to one of four
-specialist agents:
+---
 
-- **GradingAgent** — grades typed or scanned answers against rubrics.
-- **LessonPlanAgent** — RAG-grounded, CBSE/ICSE-aligned lesson plans.
-- **WellbeingAgent** — lightweight workload check-ins (not a diagnostic tool).
-- **CareerAgent** — upskilling / pivot suggestions over an Indian job-market corpus.
+## What it does
 
-Shared infra: an **embedded Qdrant** vector store (in-process, no server/Docker), a
-**teacher profile/memory** layer, and a single **provider-router**
-(Groq → Gemini → Ollama) that every LLM call flows through. Embeddings run locally
-(BAAI/bge-m3). Zero paid APIs.
+Teachers in India carry a heavy, unglamorous load — stacks of papers to mark, the same
+lessons to re-plan every year, real burnout, and few tools built for *them*. Four
+specialist agents, each aimed at one of those problems:
+
+| Capability | The teacher's problem it solves |
+|---|---|
+| 🖊️ **Grading** | Marking a class set by hand every evening. Grades typed answers *or a photo of a handwritten answer sheet* against a rubric, with per-criterion feedback. |
+| 📖 **Lesson planning** | Re-planning from scratch, unsure it's syllabus-aligned. Generates a plan **grounded in retrieved curriculum, with citations** — or says honestly when it isn't. |
+| 💚 **Wellbeing** | Quiet overload, no space to notice it. Reflects real workload patterns from the teacher's own logs — supportive, **never clinical**. |
+| 🧭 **Career** | Feeling stuck, curious about edtech / L&D / curriculum roles. Grounded, honest guidance with real tradeoffs — no invented salaries. |
+
+A **Chat** screen ties them together: you type naturally, an orchestrator classifies
+intent and routes to the right specialist, streaming the answer back.
+
+## Architecture
+
+```
+                        ┌───────────────────────────────────────────────┐
+   Next.js frontend     │            FastAPI backend (REST + SSE)        │
+   (Vercel)  ──────────▶│                                               │
+   chat · tools         │   run_turn() ─▶ LangGraph orchestrator        │
+                        │                    │                          │
+                        │      load_profile ─┤─ classify_intent         │
+                        │                    ▼ (route by intent)        │
+                        │   ┌─────────┬───────────┬──────────┬────────┐ │
+                        │   │ grading │ lesson_plan│ wellbeing│ career │ │
+                        │   └────┬────┴─────┬──────┴────┬─────┴───┬────┘ │
+                        │        └──────────┴───────────┴─────────┘      │
+                        │                    │                          │
+                        │        ProviderRouter (fast/smart/bulk/mm)    │
+                        │        Groq → Gemini → Ollama  (+cache)        │
+                        └────────────────────────────┬──────────────────┘
+                                    │                 │
+                        embedded Qdrant + BGE-M3      Langfuse traces
+                        (local, on-disk, private)     (each call visible)
+```
+
+**Request lifecycle:** `message → load teacher profile → classify intent → route to a
+specialist → (retrieve curriculum / compute workload facts) → LLM via the router →
+grounded, structured response → streamed to the UI as a rich card`, with every LLM call
+traced.
+
+**Why multi-agent, not one big prompt?** Each concern has genuinely different inputs,
+tools, and *failure tolerance*: grading takes an image and must never fabricate a mark;
+lesson planning needs RAG and citations; wellbeing must be non-clinical and safety-first;
+career needs a curated dataset. Separating them means each can be prompted, grounded, and
+guard-railed for its own risk — and evaluated independently.
+
+## Engineering decisions worth noting
+
+- **Free-tier limits as a scaling design, not a constraint.** Every LLM call goes
+  through one `ProviderRouter` with a declarative task-type → model-tier → provider
+  chain (Groq → Gemini → Ollama). It retries on 429s (honouring `retry-after`), falls
+  back down the chain, disables a bad-key provider for the process, and caches
+  deterministic calls. Scaling up is a table edit, not a rewrite — callers never learn
+  which provider served them.
+- **Local embeddings = cost + privacy win.** BGE-M3 runs on-device via
+  sentence-transformers — no embedding API, no per-token cost, no rate limit, and **no
+  student or curriculum text leaves the machine to be embedded.** It's multilingual too
+  (chosen partly for Hindi/Hinglish, on the roadmap).
+- **Never fabricate — the trust throughline.** Grading returns `needs_review` (not an
+  invented mark) when an answer is illegible or off-topic. Lesson plans carry a
+  `grounding` flag (`curriculum_grounded` / `partial` / `general_knowledge`) and cite
+  the *real* retrieved text. Career guidance won't attribute an invented job title to
+  the dataset. This is the same rule everywhere.
+- **Wellbeing is safety-engineered.** A high-recall crisis screen runs **first**; on a
+  distress signal it does no analysis and hands off to config-driven helplines. The
+  workload numbers are **computed in Python, not by the LLM** — the model only phrases
+  warmth around real facts. A "not medical advice" disclaimer is always present.
+- **Observability makes the routing visible.** Langfuse traces every `llm.complete`
+  (provider, tier, fallbacks, cache hit/miss, tokens, latency) nested under each
+  `orchestrator.turn` — so the free-tier behaviour is inspectable, not a black box. It's
+  a strict no-op when unconfigured; the app runs identically without it.
+- **Quality is measured, not claimed.** Retrieval and grading-consistency evals live in
+  the repo with committed sample results (see below).
+- **Typed and tested throughout.** `mypy --strict`, `ruff`, 137 tests (all LLM/embedder
+  mocked — CI never spends a token or downloads the 2GB model).
+
+## Observability & evaluation
+
+**Traces (Langfuse).** Set `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` (free cloud or
+self-host) and every turn appears as a trace: the intent, the agent, and each provider
+call with its model, fallbacks, cache status, tokens, and latency. Unset → no-op.
+
+**Evals** ([`eval/README.md`](eval/README.md)) — real numbers from the committed sample runs:
+
+| Eval | Result | What it means |
+|---|---|---|
+| Retrieval (recall@4 / MRR) | **1.0 / 1.0** | Every eval question retrieved its correct curriculum source at rank 1 |
+| Grading consistency | **mean swing 0.33 marks** across 3 runs | The same answer gets essentially the same grade each time; off-topic answers refused 3/3 |
+
+```bash
+python scripts/eval_retrieval.py --k 4     # recall@k, MRR (deterministic; + optional Ragas)
+python scripts/eval_grading.py --runs 3    # per-sample mark swing / needs_review rate
+```
+
+Honest framing: small synthetic datasets, free-tier judge — directional, not a
+benchmark. The point is that evaluation is *built in*.
 
 ## Running locally
 
@@ -28,336 +132,64 @@ Shared infra: an **embedded Qdrant** vector store (in-process, no server/Docker)
 
 ```bash
 uv sync            # or: pip install -e ".[dev]"
-cp .env.example .env                            # add a GROQ/GEMINI key for the LLM path
-python scripts/ingest_curriculum.py             # (once) index the sample curriculum for RAG
+cp .env.example .env                            # add a GROQ (and optionally GEMINI) key
+python scripts/ingest_curriculum.py             # (once) index the sample curriculum
 python scripts/ingest_career.py                 # (once) index the career dataset
 ./scripts/run_api.sh                            # http://localhost:8000  (docs at /docs)
 ```
 
-**Frontend** (Node 18+; the app is in `web/`):
+**Frontend** (Node 18+):
 
 ```bash
-cd web
-npm install
+cd web && npm install
 cp .env.example .env.local                      # NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 npm run dev                                     # http://localhost:3000
 ```
 
-Without provider keys the orchestrator still runs (keyword intent heuristic); with a
-`GROQ_API_KEY` the full LLM path works. Terminal-only? `python scripts/chat_demo.py`.
-
-## Frontend
-
-A production-feel Next.js 16 app (App Router, React 19, Tailwind v4) — see
-[`web/`](web/). It streams the orchestrator over SSE (with a live "detected intent"
-badge) and renders each agent's structured output as a rich card: score rings and
-per-criterion bars for grading, a printable timeline with citations for lesson plans,
-a respectful reflection (and a calm, resource-forward distress handoff) for wellbeing,
-and grounded path cards for career. Light/dark themes, keyboard-navigable, responsive.
+No provider key? The orchestrator still runs on its keyword intent heuristic. Terminal
+only? `python scripts/chat_demo.py`.
 
 ## Deployment
 
-Monorepo: **frontend → Vercel**, **backend → Render/Railway** (both env-driven).
+Monorepo: **frontend → Vercel** (root dir = `web`, set `NEXT_PUBLIC_API_BASE_URL`);
+**backend → Render/Railway** via the root [`Dockerfile`](Dockerfile) (built remotely — no
+local Docker) with the [`render.yaml`](render.yaml) blueprint. Set `GROQ_API_KEY`,
+`GEMINI_API_KEY`, and `CORS_ORIGINS` (include the Vercel URL). See
+[`web/README.md`](web/README.md).
 
-- **Frontend (Vercel):** import the repo, set **Root Directory = `web`**, set
-  `NEXT_PUBLIC_API_BASE_URL` to the backend URL. See [`web/README.md`](web/README.md).
-- **Backend (Render/Railway):** builds the root [`Dockerfile`](Dockerfile) remotely
-  (Docker isn't needed on your machine). A [`render.yaml`](render.yaml) blueprint is
-  included. Set env vars `GROQ_API_KEY`, `GEMINI_API_KEY`, and `CORS_ORIGINS` (must
-  include your Vercel URL as a JSON list).
-- **Cold-start caveat:** local embeddings mean the ~2GB BGE-M3 model downloads on the
-  first lesson-plan/career request on a fresh host — that request will be slow. On a
-  persistent disk it's a one-time cost; on ephemeral free tiers it recurs per cold
-  start. To shrink it, set `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5` (~130MB, English).
+**Cold-start caveat:** local embeddings mean the ~2GB BGE-M3 model downloads on the first
+lesson-plan/career request on a fresh host (slow once, or every cold start on ephemeral
+free tiers). Shrink it with `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5` (~130MB, English).
 
-> Building this in the open, phase by phase — see [`docs/JOURNAL.md`](docs/JOURNAL.md)
-> for the reasoning behind each step.
+## Roadmap
 
-## Provider routing
+Deliberately deferred to keep the build focused and each phase shippable — but designed
+to extend:
 
-Every LLM call goes through a single `ProviderRouter` (`providers/router.py`). No
-other module may import a provider SDK. The router maps a **task type** to an
-ordered chain of **(provider, model tier)** and walks it with retry-then-fallback:
+- **Hindi / Hinglish** — BGE-M3 was chosen partly for this; the UI and prompts are the
+  remaining work.
+- **Voice-to-text input** — the chat input already reserves a (disabled) mic affordance.
+- **WhatsApp delivery** — meet teachers where they already are.
+- **Student-facing portal** — practice + feedback loops on top of the grading agent.
+- **Real token streaming** — the SSE protocol already reserves an `event: token`.
+- **Auth & multi-tenant profiles** — today it's a single `teacher_id`, no login.
 
-| task_type    | used for                               | provider → model-tier chain                                   |
-|--------------|----------------------------------------|---------------------------------------------------------------|
-| `fast`       | intent classification, short cheap calls | Groq `GROQ_FAST_MODEL` → Gemini `GEMINI_BULK_MODEL` → Ollama |
-| `smart`      | reasoning-heavy text (e.g. typed-answer feedback) | Groq `GROQ_SMART_MODEL` → Gemini `GEMINI_SMART_MODEL` → Ollama |
-| `multimodal` | image inputs (scanned-answer grading)  | Gemini `GEMINI_SMART_MODEL` only (no fallback)                |
-| `bulk`       | lesson-plan generation, career RAG     | Gemini `GEMINI_BULK_MODEL` → Groq `GROQ_SMART_MODEL` → Ollama  |
+## Tech stack
 
-Model tiers are env-overridable (the env var names appear in the table); the table is expressed in
-tiers, not literal model strings, so re-tiering is a config change, not a code
-change. Tier defaults: `GROQ_FAST_MODEL=openai/gpt-oss-20b`,
-`GROQ_SMART_MODEL=openai/gpt-oss-120b`, `GEMINI_BULK_MODEL=gemini-3.5-flash-lite`
-(⚠️ verify current free-tier quota in AI Studio), `GEMINI_SMART_MODEL=gemini-3.5-flash`;
-Ollama uses its client default `llama3.2:3b`. A **per-call `model=` override always
-wins** over the tier. Any image in the messages forces the `multimodal` chain
-regardless of the requested task type. Legacy `GROQ_MODEL` / `GEMINI_MODEL` env vars
-are still honoured — mapped onto the smart tier with a startup deprecation warning.
+**Backend:** Python · FastAPI · LangGraph · Pydantic v2 · Qdrant (embedded) ·
+sentence-transformers (BGE-M3) · Groq / Gemini / Ollama · Langfuse · Ragas.
+**Frontend:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · TanStack
+Query · framer-motion.
 
-**Fallback & retry policy.** On a `429` (rate limit) or unavailability, the router
-retries the *same* provider once — honouring the server's `retry-after`, with total
-sleep across the call capped at 10s — then falls back to the next provider in the
-chain. An **auth error disables that provider for the rest of the process** (a bad
-key never fixes itself mid-run). If the whole chain fails, it raises
-`ProviderExhaustedError` carrying the per-provider reasons (the API layer turns this
-into a friendly "system busy" message in Phase 6). Completions are optionally cached
-(opt-in `cacheable=True`) in an in-memory LRU+TTL cache keyed by a provider-agnostic
-hash of the request.
+## Build phases
 
-**Why this design.** Free-tier rate limits are not an edge case here — they are the
-operating condition, so 429s are treated as a first-class, expected signal rather
-than an error. Encoding the policy as a declarative routing table means scaling or
-re-tiering the system is a table edit, not a rewrite: callers ask for a `task_type`
-and never learn which provider served them.
+- [x] **Phase 0** — scaffold, config, shared state, `/health`
+- [x] **Phase 1** — provider routing + fallback + cache + model tiering
+- [x] **Phase 2** — LangGraph orchestrator + intent routing + memory
+- [x] **Phase 3** — grading agent (text + Gemini vision) + consistency eval
+- [x] **Phase 4** — lesson-plan agent + curriculum ingestion + hybrid retrieval
+- [x] **Phase 5** — wellbeing + career agents — **all four specialists live**
+- [x] **Phase 6A / 6B** — FastAPI (REST + SSE) backend + Next.js frontend, **deploy-ready**
+- [x] **Phase 7** — Langfuse observability + Ragas/consistency evals + docs
 
-## Orchestrator
-
-A LangGraph `StateGraph` over `CopilotState` runs each turn: load the teacher's
-profile, classify intent, then route to the matching specialist (or the general
-path). `run_turn(graph, teacher_id, message, state)` is the single entry point.
-
-```
-              ┌──────────────┐     ┌─────────────────┐
-   START ───▶ │ load_profile │ ──▶ │ classify_intent │
-              └──────────────┘     └───────┬─────────┘
-                                           │  route by state.intent
-        ┌──────────────┬───────────────────┼──────────────┬───────────────┐
-        ▼              ▼                    ▼              ▼               ▼
-    ┌─────────┐  ┌────────────┐      ┌───────────┐   ┌────────┐   ┌──────────────────┐
-    │ grading │  │ lesson_plan│      │ wellbeing │   │ career │   │ general_response │
-    └────┬────┘  └─────┬──────┘      └─────┬─────┘   └───┬────┘   └────────┬─────────┘
-         └─────────────┴───────────────────┴─────────────┴─────────────────┘
-                                           ▼
-                                          END
-```
-
-**Intent classification** asks the `fast` tier for strict JSON
-(`{"intent", "confidence"}`) with few-shot examples in the Indian-teacher context.
-It is defensive by construction: malformed JSON triggers one corrective retry, then
-a documented keyword heuristic (confidence `0.3`); an LLM verdict below `0.5`
-confidence is downgraded to the safe `general` path. A bad model response never
-crashes the graph.
-
-Grading is live (Phase 3); lesson_plan / wellbeing / career are still stubs whose
-nodes return a graceful `not_implemented` output — the graph runs **end to end
-today** with real intent routing and a working general chat path. Memory is wired
-in: an embedded `VectorStore` (Phase 4 fills the RAG) and a JSON-file `ProfileStore`
-loaded into state at the start of every turn.
-
-## Grading agent
-
-The flagship feature: grades typed or scanned student answers against a rubric and
-returns structured, teacher-style feedback.
-
-```
-   answer (+ optional rubric)
-            │
-            ▼
-   ┌──────────────────┐   no rubric?   ┌────────────────────┐
-   │  rubric present? │ ─────────────▶ │  auto-generate it  │  (smart tier, shown
-   └────────┬─────────┘                └─────────┬──────────┘   in the result)
-            │ yes                                │
-            ▼                                    ▼
-   ┌───────────────────────────────────────────────────────┐
-   │  grade against rubric                                  │
-   │   • text  → smart tier                                 │
-   │   • image → multimodal tier (Gemini vision)            │
-   └───────────────────────┬───────────────────────────────┘
-                           ▼
-   ┌───────────────────────────────────────────────────────┐
-   │  validate: extract_json → Pydantic → clamp to bounds   │
-   │   • parse fails (x2) ─▶ needs_review (raw preserved)   │
-   │   • marks over max    ─▶ clamped + flagged             │
-   └───────────────────────┬───────────────────────────────┘
-                           ▼
-              GradedResult (scores + justifications,
-              strengths, improvements, %, rubric shown)
-```
-
-**Never fabricate a grade.** If an answer is illegible, appears to answer a
-different question, or the model isn't confident, the result is
-`status="needs_review"` with the raw output preserved — not an invented mark. Marks
-that exceed a criterion's max are clamped and the adjustment is flagged. Each
-justification must cite the student's own words, and the tone is kind but honest —
-it should read like a good teacher's margin notes.
-
-**Auto-rubric, always shown.** If the teacher gives no rubric, one is generated from
-the question + their profile (subject/grade) and returned in the result
-(`rubric_source="auto"`), so the grade is always explainable.
-
-**Batch design.** `grade_batch()` bounds concurrency with an `asyncio.Semaphore`
-(default 3) — free-tier RPM limits make unbounded fan-out self-defeating (just 429s).
-A single failed item is wrapped as a `GradingError` and never sinks the rest.
-
-**Consistency eval** (live API, costs quota):
-
-```bash
-python scripts/eval_grading.py --runs 3      # per-criterion mark variance + needs_review
-```
-
-It grades a built-in sample set (`data/eval/grading_samples.json`) N times and
-reports how stable the marks are across runs — the grading-consistency metric.
-
-## Lesson planning + RAG
-
-Lesson plans are **grounded in retrieved curriculum and cite their sources** — the
-same "never fabricate" trust rule as grading, applied to syllabus content.
-
-```
-  data/curriculum/*.md,.txt,.pdf
-            │  load + parse (front-matter / sidecar json)
-            ▼
-       structure-aware chunking  (headings/paragraphs, ~650 tok, 80 overlap)
-            │
-            ▼
-     BGE-M3 embeddings (LOCAL) ──▶ Qdrant "curriculum" collection   [ingest]
-            ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
-   "plan a lesson on reflection of light, class 8"                 [query]
-            │
-            ▼
-   hybrid retrieve = dense (BGE-M3 cosine) + BM25 keyword re-rank
-            │        + subject/grade/board metadata filters
-            ▼
-   grounded generate (bulk tier, cacheable) ──▶ LessonPlan + Citations + grounding
-```
-
-**Grounding is a trust signal.** A plan is `curriculum_grounded` only when retrieval
-finds ≥2 chunks above a real cosine-relevance bar; one weak hit → `partial`; nothing
-relevant → `general_knowledge` with an explicit disclaimer and **no citations**. It
-never dresses up general knowledge as syllabus-aligned. Citations are built from the
-actual retrieved text, never invented by the model.
-
-**Hybrid search — honest about the limits.** Dense recall (BGE-M3) surfaces a
-candidate pool; a lightweight BM25 scorer re-ranks it to reward exact keyword matches
-(topic/formula names) that embeddings under-weight; the final score blends the two
-(0.6 dense / 0.4 keyword, normalised). It's a *pragmatic* hybrid, not a production
-sparse index — BM25 only sees what dense retrieval already surfaced. Fine for a small
-curriculum corpus; a real deployment would add a proper inverted index or Qdrant
-sparse vectors. No heavy new dependency.
-
-**Local embeddings = cost + privacy win.** Embeddings run on-device via
-`sentence-transformers` BAAI/bge-m3 (multilingual — English + Hindi + Hinglish). No
-embedding API, no per-token cost, no rate limit, and **no student or curriculum text
-ever leaves the machine to be embedded** — a genuine selling point for schools. First
-run downloads the model (~2GB) once.
-
-```bash
-python scripts/ingest_curriculum.py     # embed + index the sample corpus into Qdrant
-python scripts/chat_demo.py             # then ask for a lesson plan → grounded + cited
-```
-
-A tiny synthetic sample corpus ships in `data/curriculum/` so RAG works out of the box.
-
-## Wellbeing agent — what it deliberately does NOT do
-
-This is the highest-risk component in the product, so the boundaries come first:
-
-- It is **NOT** therapy, counselling, diagnosis, or a mental-health assessment. It
-  never diagnoses, never uses clinical language, never scores a person's mental
-  state, and never implies it can treat anything.
-- It **is** a workload-awareness and supportive-reflection tool — a caring colleague,
-  not a therapist and not a cheerleader (no toxic positivity). It validates that
-  teaching in India is genuinely demanding.
-
-Two design choices enforce this:
-
-- **Crisis pre-filter runs first.** A deliberately high-recall keyword screen checks
-  the message for serious-distress / self-harm signals *before* any analysis. On a
-  hit, the agent does **not** analyse or problem-solve — it responds briefly and
-  warmly and hands off to real, region-appropriate professional resources
-  (config-driven `WELLBEING_RESOURCES`, with a TODO to verify current India helpline
-  details before real use). It never claims confidentiality, never promises outcomes,
-  and always encourages reaching out to trusted people and professionals.
-- **The numbers come from Python, not the LLM.** Pattern signals (avg energy over the
-  last N days, consecutive high-load days, papers this week) are computed in plain
-  Python from the teacher's own `WorkloadEntry` logs — so a claim like "energy 2/5
-  across 5 days" is *real*, never hallucinated. The LLM only phrases warmth and
-  practical, non-medical suggestions around those computed facts. A disclaimer stating
-  this isn't medical advice is **always** present.
-
-`tone_flag` is one of `routine` / `elevated_workload` / `distress_handoff`.
-
-## Career agent
-
-Grounded, honest guidance on career growth and pivots for Indian teachers — edtech
-content, instructional design, curriculum development, L&D/corporate training,
-test-prep, content creation, school leadership, assessment, teacher training.
-
-- **Grounded in a curated dataset**, not motivational fluff and not invented job
-  titles. A small, clearly-synthetic-but-realistic dataset (`data/career/career_paths.json`)
-  is embedded into a `career_paths` Qdrant collection and retrieved with the same
-  hybrid `Retriever` the lesson planner uses.
-- **Realism guardrails**: recommend only from retrieved paths (invented titles never
-  get a dataset citation), **no salary figures, no guaranteed outcomes** — framed as
-  options and directions with real tradeoffs. `honest_caveats` are *always* attached,
-  so nothing reads as a promise.
-- **Grounding flag** like the lesson planner: `grounded` when the dataset matched,
-  else clearly-labelled `general` guidance with a disclaimer.
-
-```bash
-python scripts/ingest_career.py     # embed + index the career dataset into Qdrant
-```
-
-## API (Phase 6A)
-
-A FastAPI app exposes the orchestrator over HTTP. Startup is fast — the ~2GB embedder
-loads lazily on the first RAG call, and the lifespan closes the embedded Qdrant store
-cleanly on shutdown. Interactive docs at `/docs`.
-
-```bash
-./scripts/run_api.sh            # http://localhost:8000  (docs at /docs)
-```
-
-| Method & path | Purpose |
-|---|---|
-| `GET /health` | Liveness + per-provider health + version |
-| `POST /chat/stream` | Primary endpoint — run a turn, stream typed SSE events |
-| `POST /chat` | Non-streaming JSON fallback (same input) |
-| `POST /grade` | Grade a typed answer → `GradedResult` |
-| `POST /grade/batch` | Grade many answers (bounded concurrency) → results/errors |
-| `POST /grade/image` | Multipart image upload → multimodal grade ("scan a sheet") |
-| `GET /profile/{id}` · `PUT /profile/{id}` | Load / upsert a teacher profile |
-| `POST /profile/{id}/workload` | Append a `WorkloadEntry` (feeds wellbeing) |
-| `POST /lesson-plan` · `POST /career` | Direct structured tool endpoints (reuse the agents) |
-
-**SSE event protocol** (`/chat/stream`, `text/event-stream`):
-
-```
-event: intent        data: {"intent": "lesson_plan"}
-event: message       data: {"text": "...", "active_agent": "lesson_plan"}
-event: agent_output  data: {...GradedResult | LessonPlan | WellbeingReflection | CareerGuidance...}
-event: done          data: {"session_id": "..."}
-event: error         data: {"message": "friendly text"}      # on failure
-```
-
-Honest note: the Phase 1 router only has `complete()` (no token streaming), so today
-the turn is computed via `run_turn` and these events are emitted in order — we do
-**not** fake per-token deltas. The wire format already reserves an `event: token` for
-real streaming, so it drops in later without changing the contract or the frontend
-parser. Errors return a consistent envelope `{"error": {"type", "message"}}`; free-tier
-exhaustion becomes a friendly `503`.
-
-```bash
-# Stream a lesson plan (grounded + cited) as SSE:
-curl -N -X POST localhost:8000/chat/stream -H 'Content-Type: application/json' \
-  -d '{"teacher_id":"t1","message":"Plan a 40-min class 8 science lesson on reflection of light"}'
-
-# Grade a scanned answer sheet over HTTP:
-curl -X POST localhost:8000/grade/image \
-  -F 'file=@answer.jpg' -F 'question=State Newton'\''s second law' \
-  -F 'teacher_id=t1'
-```
-
-## Phase status
-
-- [x] **Phase 0** — repo scaffold, config, shared state, base classes, `/health` ✅
-- [x] **Phase 1** — provider routing + fallback + cache ✅
-- [x] **Phase 2** — LangGraph orchestrator + intent routing + memory wiring ✅
-- [x] **Phase 3** — grading agent (text + Gemini vision) + consistency eval ✅
-- [x] **Phase 4** — lesson plan agent + curriculum ingestion + hybrid retrieval ✅
-- [x] **Phase 5** — wellbeing + career agents ✅ — **all four specialist agents now live**
-- [x] **Phase 6A** — FastAPI backend: REST + SSE over the orchestrator ✅
-- [x] **Phase 6B** — Next.js frontend (`web/`) — streaming chat + rich cards, deploy-ready ✅
-- [ ] **Phase 7** — Langfuse tracing + Ragas evals + final docs ⬜
+**Status: all agents live · observed · evaluated · deploy-ready.**

@@ -1,0 +1,120 @@
+{
+  "eval": "grading",
+  "created_at": "2026-07-07T05:47:38+00:00",
+  "judge": "openai/gpt-oss-120b",
+  "caveats": "The grader is a free-tier LLM at temperature 0.2; scores are directional, not a psychometric measure. Small sample set. Consistency is what's measured here, not correctness against a human gold mark.",
+  "summary": {
+    "n_samples": 6,
+    "runs": 3,
+    "mean_max_swing": 0.33,
+    "worst_swing": 2,
+    "needs_review_rate": 0.167
+  },
+  "details": {
+    "samples": [
+      {
+        "id": "sci9_photosynthesis",
+        "runs": 3,
+        "mean_total": 5.0,
+        "stdev_total": 0.0,
+        "max_swing": 0,
+        "needs_review": 0,
+        "criterion_variance": {
+          "Definition": 0.0,
+          "Location": 0.0
+        }
+      },
+      {
+        "id": "eng7_paragraph",
+        "runs": 3,
+        "mean_total": 8.0,
+        "stdev_total": 0.0,
+        "max_swing": 0,
+        "needs_review": 0,
+        "criterion_variance": {
+          "Content": 0.0,
+          "Structure": 0.0,
+          "Language": 0.0,
+          "Expression": 0.0,
+          "Content Relevance": 0.0,
+          "Organization & Coherence": 0.0,
+          "Language Use": 0.0,
+          "Personal Expression": 0.0,
+          "Organization": 0.0,
+          "Creativity": 0.0
+        }
+      },
+      {
+        "id": "sci9_weak_answer",
+        "runs": 3,
+        "mean_total": 0.0,
+        "stdev_total": 0.0,
+        "max_swing": 0,
+        "needs_review": 0,
+        "criterion_variance": {
+          "Heat Transfer Concepts": 0.0,
+          "Evaporation Cooling Detail": 0.0,
+          "Scientific Terminology": 0.0,
+          "Clarity and Coherence": 0.0,
+          "Heat\u2011Loss Mechanisms": 0.0,
+          "Evaporation Explanation": 0.0,
+          "Physiological Response": 0.0,
+          "Clarity & Coherence": 0.0,
+          "Heat Transfer Concept": 0.0,
+          "Temperature Difference Explanation": 0.0,
+          "Evaporation Detail": 0.0
+        }
+      },
+      {
+        "id": "offtopic_needs_review",
+        "runs": 3,
+        "mean_total": 0.0,
+        "stdev_total": 0.0,
+        "max_swing": 0,
+        "needs_review": 3,
+        "criterion_variance": {
+          "Accurate statement": 0.0,
+          "Key concepts included": 0.0,
+          "Relevant example": 0.0,
+          "Explanation of example": 0.0,
+          "Correct statement": 0.0,
+          "Clarity and completeness": 0.0,
+          "Law Statement": 0.0,
+          "Relevant Example": 0.0,
+          "Clarity & Accuracy": 0.0
+        }
+      },
+      {
+        "id": "maths9_pythagoras",
+        "runs": 3,
+        "mean_total": 4.0,
+        "stdev_total": 0.0,
+        "max_swing": 0,
+        "needs_review": 0,
+        "criterion_variance": {
+          "Statement": 0.0,
+          "Relation": 0.0
+        }
+      },
+      {
+        "id": "sci8_partial",
+        "runs": 3,
+        "mean_total": 2.0,
+        "stdev_total": 0.816,
+        "max_swing": 2,
+        "needs_review": 0,
+        "criterion_variance": {
+          "Refraction Principle": 0.0,
+          "Apparent Depth Explanation": 0.0,
+          "Scientific Terminology & Clarity": 0.0,
+          "Identification of Refraction": 0.0,
+          "Explanation of Speed Change": 0.0,
+          "Apparent Depth Reasoning": 0.0,
+          "Clarity & Completeness": 0.0,
+          "Explanation of Light Bending": 0.0,
+          "Link to Apparent Raised Position": 0.0
+        }
+      }
+    ]
+  }
+}

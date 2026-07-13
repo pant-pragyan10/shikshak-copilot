@@ -36,5 +36,27 @@
     "question": "State Newton's first law of motion with an example.",
     "answer_text": "The mitochondria is the powerhouse of the cell and it produces energy for the body.",
     "note": "Answer is for a completely different question -> should trigger needs_review."
+  },
+  {
+    "id": "maths9_pythagoras",
+    "subject": "Mathematics",
+    "grade_level": "9",
+    "question": "State the Pythagoras theorem and give the relation between the sides of a right-angled triangle.",
+    "answer_text": "In a right-angled triangle, the square of the hypotenuse equals the sum of the squares of the other two sides. So if the sides are a, b and hypotenuse c, then c squared equals a squared plus b squared.",
+    "rubric": {
+      "criteria": [
+        {"name": "Statement", "description": "States the theorem correctly.", "max_marks": 2},
+        {"name": "Relation", "description": "Gives the correct algebraic relation.", "max_marks": 2}
+      ]
+    },
+    "note": "Strong, complete answer with a teacher-supplied rubric."
+  },
+  {
+    "id": "sci8_partial",
+    "subject": "Science",
+    "grade_level": "8",
+    "question": "Explain why a coin appears raised when seen through water.",
+    "answer_text": "Because of light. The water bends the light so the coin looks like it is higher than it really is.",
+    "note": "Partially correct (mentions bending/refraction) but lacks the term refraction and detail -> mid-range marks."
   }
 ]

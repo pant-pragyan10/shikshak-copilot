@@ -32,6 +32,12 @@ dev = [
     "mypy>=1.10",
     "ruff>=0.5",
 ]
+# Optional: LLM-judged retrieval metrics (context precision/recall) for eval_retrieval.py.
+# The deterministic retrieval metrics + grading eval run without this.
+eval = [
+    "ragas>=0.2",
+    "datasets>=2.0",
+]
 
 [build-system]
 requires = ["hatchling"]
